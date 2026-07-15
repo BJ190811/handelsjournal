@@ -96,6 +96,20 @@
     font-weight:500;
   }
 
+  .equity-card{
+    background:var(--ink-900);
+    border:1px solid var(--ink-700);
+    padding:1.1rem 1.2rem 0.6rem;
+    margin-bottom:2.4rem;
+  }
+  .equity-card .kicker{margin-bottom:0.6rem;}
+  .equity-empty{
+    color:var(--parchment-dim);
+    font-size:0.82rem;
+    padding:1.5rem 0;
+    text-align:center;
+  }
+
   .toolbar{
     display:flex;flex-wrap:wrap;gap:0.6rem;
     align-items:center;justify-content:space-between;
@@ -130,20 +144,39 @@
   }
   .btn:hover{background:var(--gold-soft);}
 
+  .modal-overlay{
+    display:none;
+    position:fixed;inset:0;
+    background:rgba(8,11,15,0.72);
+    align-items:center;justify-content:center;
+    padding:1.2rem;
+    z-index:100;
+  }
+  .modal-overlay.open{display:flex;}
   .panel{
     background:var(--ink-900);
     border:1px solid var(--ink-700);
     padding:1.4rem;
-    margin-bottom:2rem;
-    display:none;
+    width:100%;
+    max-width:460px;
+    max-height:90vh;
+    overflow-y:auto;
   }
-  .panel.open{display:block;}
-  .panel h2{
+  .panel-head{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:1.1rem;
+  }
+  .panel-head h2{
     font-family:'Fraunces',serif;
     font-weight:500;
     font-size:1.15rem;
-    margin:0 0 1.1rem;
+    margin:0;
   }
+  .modal-close{
+    background:none;border:none;color:var(--muted);
+    font-size:1.1rem;cursor:pointer;padding:0.2rem 0.4rem;
+  }
+  .modal-close:hover{color:var(--parchment);}
   .grid-form{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
@@ -282,37 +315,47 @@
 
   <div class="stats" id="statsGrid"></div>
 
+  <div class="equity-card">
+    <p class="kicker">Equity Curve</p>
+    <div id="equityChart"></div>
+  </div>
+
   <div class="toolbar">
     <div class="filters" id="filterChips"></div>
     <button class="btn" id="toggleFormBtn">+ Neuer Trade</button>
   </div>
 
-  <div class="panel" id="tradePanel">
-    <h2>Neuer Eintrag</h2>
-    <div class="grid-form">
-      <div class="field">
-        <label>Datum</label>
-        <input type="date" id="f-date">
+  <div class="modal-overlay" id="tradeModal">
+    <div class="panel" id="tradePanel">
+      <div class="panel-head">
+        <h2>Neuer Eintrag</h2>
+        <button type="button" class="modal-close" onclick="closePanel()" aria-label="Schließen">✕</button>
       </div>
-      <div class="field">
-        <label>Richtung</label>
-        <div class="dir-toggle">
-          <button type="button" id="f-long" onclick="setDirection('long')">Long</button>
-          <button type="button" id="f-short" onclick="setDirection('short')">Short</button>
+      <div class="grid-form">
+        <div class="field">
+          <label>Datum</label>
+          <input type="date" id="f-date">
+        </div>
+        <div class="field">
+          <label>Richtung</label>
+          <div class="dir-toggle">
+            <button type="button" id="f-long" onclick="setDirection('long')">Long</button>
+            <button type="button" id="f-short" onclick="setDirection('short')">Short</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Asset</label>
+          <input type="text" id="f-asset" placeholder="z. B. AAPL, BTC, EUR/USD">
+        </div>
+        <div class="field">
+          <label>P&L</label>
+          <input type="number" step="any" id="f-pnl" placeholder="z. B. 150 oder -80">
         </div>
       </div>
-      <div class="field">
-        <label>Asset</label>
-        <input type="text" id="f-asset" placeholder="z. B. AAPL, BTC, EUR/USD">
+      <div class="panel-actions">
+        <button class="btn btn-ghost" onclick="closePanel()">Abbrechen</button>
+        <button class="btn" onclick="saveTrade()">Trade speichern</button>
       </div>
-      <div class="field">
-        <label>P&L</label>
-        <input type="number" step="any" id="f-pnl" placeholder="z. B. 150 oder -80">
-      </div>
-    </div>
-    <div class="panel-actions">
-      <button class="btn btn-ghost" onclick="closePanel()">Abbrechen</button>
-      <button class="btn" onclick="saveTrade()">Trade speichern</button>
     </div>
   </div>
 
@@ -360,12 +403,15 @@ function setDirection(d){
 setDirection('long');
 
 function togglePanel(){
-  document.getElementById('tradePanel').classList.toggle('open');
+  document.getElementById('tradeModal').classList.add('open');
 }
 function closePanel(){
-  document.getElementById('tradePanel').classList.remove('open');
+  document.getElementById('tradeModal').classList.remove('open');
   clearForm();
 }
+document.getElementById('tradeModal').addEventListener('click', (e) => {
+  if(e.target.id === 'tradeModal') closePanel();
+});
 function clearForm(){
   document.getElementById('f-pnl').value = '';
   document.getElementById('f-asset').value = '';
@@ -477,6 +523,44 @@ function renderLedger(filtered){
   container.innerHTML = html;
 }
 
+function renderEquityCurve(filtered){
+  const container = document.getElementById('equityChart');
+  if(filtered.length < 2){
+    container.innerHTML = '<div class="equity-empty">Noch nicht genug Einträge für eine Kurve.</div>';
+    return;
+  }
+  const sorted = [...filtered].sort((a,b) => a.date.localeCompare(b.date));
+  let running = 0;
+  const points = sorted.map(t => { running += t.pnl; return running; });
+  points.unshift(0);
+
+  const w = 600, h = 160, padX = 8, padY = 12;
+  const min = Math.min(0, ...points);
+  const max = Math.max(0, ...points);
+  const range = (max - min) || 1;
+  const stepX = (w - padX*2) / (points.length - 1);
+
+  const coords = points.map((v, i) => {
+    const x = padX + i * stepX;
+    const y = padY + (1 - (v - min) / range) * (h - padY*2);
+    return [x, y];
+  });
+  const zeroY = padY + (1 - (0 - min) / range) * (h - padY*2);
+
+  const linePath = coords.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${coords[coords.length-1][0].toFixed(1)} ${zeroY.toFixed(1)} L${coords[0][0].toFixed(1)} ${zeroY.toFixed(1)} Z`;
+
+  const final = points[points.length - 1];
+  const lineColor = final >= 0 ? '#6FB585' : '#D07A63';
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" width="100%" height="160" preserveAspectRatio="none" role="img" aria-label="Equity Curve, Verlauf des kumulierten Ergebnisses">
+      <line x1="0" y1="${zeroY.toFixed(1)}" x2="${w}" y2="${zeroY.toFixed(1)}" stroke="#2C3846" stroke-width="1"/>
+      <path d="${areaPath}" fill="${lineColor}" opacity="0.12" stroke="none"/>
+      <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2"/>
+    </svg>`;
+}
+
 function getFiltered(){
   return trades.filter(t => {
     if(currentFilter === 'Alle') return true;
@@ -490,6 +574,7 @@ function render(){
   renderFilters();
   const filtered = getFiltered();
   renderStats(filtered);
+  renderEquityCurve(filtered);
   renderLedger(filtered);
 }
 
