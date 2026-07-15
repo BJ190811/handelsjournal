@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handelsjournal</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#10151C">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-950:#10151C;
+    --ink-900:#171E27;
+    --ink-850:#1C2430;
+    --ink-800:#212B37;
+    --ink-700:#2C3846;
+    --parchment:#EDE7D9;
+    --parchment-dim:#A9A290;
+    --muted:#7D8894;
+    --gold:#C9A227;
+    --gold-soft:#4A3F1E;
+    --gain:#6FB585;
+    --loss:#D07A63;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink-950);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+
+  .ledger-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1px solid var(--gold-soft);
+    padding-bottom:1.1rem;margin-bottom:0.4rem;
+  }
+  .ledger-head .under{
+    border-bottom:1px solid var(--ink-700);
+    margin-bottom:2rem;
+  }
+  h1{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:2.1rem;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .kicker{
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin:0 0 0.35rem;
+  }
+  .date-badge{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.78rem;
+    color:var(--parchment-dim);
+  }
+
+  .hero{margin:1.8rem 0 2.4rem;}
+  .hero .kicker{margin-bottom:0.3rem;}
+  .hero-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:3.1rem;
+    font-weight:500;
+    line-height:1;
+  }
+  .gain{color:var(--gain);}
+  .loss{color:var(--loss);}
+  .neutral{color:var(--parchment-dim);}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:1px;
+    background:var(--ink-700);
+    border:1px solid var(--ink-700);
+    margin-bottom:2.4rem;
+  }
+  .stat{
+    background:var(--ink-900);
+    padding:0.95rem 1.1rem;
+  }
+  .stat .kicker{margin-bottom:0.4rem;}
+  .stat-val{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.3rem;
+    font-weight:500;
+  }
+
+  .toolbar{
+    display:flex;flex-wrap:wrap;gap:0.6rem;
+    align-items:center;justify-content:space-between;
+    margin-bottom:1.4rem;
+  }
+  .filters{display:flex;flex-wrap:wrap;gap:0.4rem;}
+  .chip{
+    font-family:'Inter',sans-serif;
+    font-size:0.78rem;
+    padding:0.35rem 0.75rem;
+    border:1px solid var(--ink-700);
+    background:transparent;
+    color:var(--parchment-dim);
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .chip.active{
+    border-color:var(--gold);
+    color:var(--gold);
+  }
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-size:0.82rem;
+    font-weight:500;
+    padding:0.55rem 1rem;
+    border:1px solid var(--gold);
+    background:transparent;
+    color:var(--gold);
+    cursor:pointer;
+    border-radius:2px;
+    white-space:nowrap;
+  }
+  .btn:hover{background:var(--gold-soft);}
+
+  .panel{
+    background:var(--ink-900);
+    border:1px solid var(--ink-700);
+    padding:1.4rem;
+    margin-bottom:2rem;
+    display:none;
+  }
+  .panel.open{display:block;}
+  .panel h2{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:1.15rem;
+    margin:0 0 1.1rem;
+  }
+  .grid-form{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:0.9rem;
+  }
+  .field label{
+    display:block;
+    font-size:0.72rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:0.35rem;
+  }
+  .field input{
+    width:100%;
+    background:var(--ink-850);
+    border:1px solid var(--ink-700);
+    color:var(--parchment);
+    padding:0.5rem 0.6rem;
+    font-family:'Inter',sans-serif;
+    font-size:0.86rem;
+    border-radius:2px;
+  }
+  .dir-toggle{display:flex;gap:0.4rem;}
+  .dir-toggle button{
+    flex:1;
+    padding:0.5rem;
+    background:var(--ink-850);
+    border:1px solid var(--ink-700);
+    color:var(--parchment-dim);
+    cursor:pointer;
+    font-size:0.82rem;
+    border-radius:2px;
+  }
+  .dir-toggle button.sel-long{border-color:var(--gain);color:var(--gain);}
+  .dir-toggle button.sel-short{border-color:var(--loss);color:var(--loss);}
+  .panel-actions{
+    margin-top:1.2rem;display:flex;gap:0.6rem;justify-content:flex-end;
+  }
+  .btn-ghost{
+    border-color:var(--ink-700);color:var(--parchment-dim);
+  }
+  .btn-ghost:hover{background:var(--ink-800);}
+
+  .ledger{
+    border:1px solid var(--ink-700);
+    background:var(--ink-900);
+  }
+  .row{
+    display:grid;
+    grid-template-columns:100px 90px 1fr 1fr 130px 32px;
+    gap:0.6rem;
+    align-items:center;
+    padding:0.75rem 1rem;
+    border-bottom:1px solid var(--ink-800);
+    font-size:0.85rem;
+  }
+  .row:last-child{border-bottom:none;}
+  .row.head{
+    font-size:0.68rem;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    background:var(--ink-850);
+  }
+  .row.entry:nth-child(even){background:var(--ink-850);}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .sym{font-weight:500;}
+  .dir-tag{
+    font-size:0.72rem;
+    padding:0.15rem 0.4rem;
+    border-radius:2px;
+    display:inline-block;
+    width:fit-content;
+  }
+  .dir-tag.long{color:var(--gain);border:1px solid var(--gain);}
+  .dir-tag.short{color:var(--loss);border:1px solid var(--loss);}
+  .stamp{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.62rem;
+    letter-spacing:0.08em;
+    padding:0.2rem 0.45rem;
+    border:2px solid;
+    border-radius:3px;
+    transform:rotate(-6deg);
+    display:inline-block;
+    text-align:center;
+  }
+  .stamp.win{color:var(--gain);border-color:var(--gain);}
+  .stamp.lose{color:var(--loss);border-color:var(--loss);}
+  .del-btn{
+    background:none;border:none;color:var(--muted);
+    cursor:pointer;font-size:0.95rem;
+  }
+  .del-btn:hover{color:var(--loss);}
+
+  .empty{
+    text-align:center;
+    padding:3rem 1rem;
+    color:var(--parchment-dim);
+  }
+  .empty h3{
+    font-family:'Fraunces',serif;font-weight:500;
+    color:var(--parchment);margin:0 0 0.4rem;
+  }
+
+  @media(max-width:600px){
+    .row{
+      grid-template-columns:1fr 1fr;
+      row-gap:0.3rem;
+      position:relative;
+      padding-right:2.5rem;
+    }
+    .row.head{display:none;}
+    .col-stamp{grid-column:1/-1;}
+    .col-del{position:absolute;right:1rem;top:0.75rem;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="ledger-head">
+    <div>
+      <p class="kicker">Handelsjournal</p>
+      <h1>Alle Trades im Überblick</h1>
+    </div>
+    <div class="date-badge" id="today"></div>
+  </div>
+  <div class="under"></div>
+
+  <div class="hero">
+    <p class="kicker">Gesamtergebnis</p>
+    <div class="hero-num neutral" id="heroPnl">0,00</div>
+  </div>
+
+  <div class="stats" id="statsGrid"></div>
+
+  <div class="toolbar">
+    <div class="filters" id="filterChips"></div>
+    <button class="btn" id="toggleFormBtn">+ Neuer Trade</button>
+  </div>
+
+  <div class="panel" id="tradePanel">
+    <h2>Neuer Eintrag</h2>
+    <div class="grid-form">
+      <div class="field">
+        <label>Datum</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field">
+        <label>Richtung</label>
+        <div class="dir-toggle">
+          <button type="button" id="f-long" onclick="setDirection('long')">Long</button>
+          <button type="button" id="f-short" onclick="setDirection('short')">Short</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Asset</label>
+        <input type="text" id="f-asset" placeholder="z. B. AAPL, BTC, EUR/USD">
+      </div>
+      <div class="field">
+        <label>P&L</label>
+        <input type="number" step="any" id="f-pnl" placeholder="z. B. 150 oder -80">
+      </div>
+    </div>
+    <div class="panel-actions">
+      <button class="btn btn-ghost" onclick="closePanel()">Abbrechen</button>
+      <button class="btn" onclick="saveTrade()">Trade speichern</button>
+    </div>
+  </div>
+
+  <div id="ledgerContainer"></div>
+
+</div>
+
+<script>
+let trades = [];
+let currentFilter = 'Alle';
+let currentDirection = 'long';
+const FILTERS = ['Alle','Long','Short'];
+
+document.getElementById('today').textContent = new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+document.getElementById('f-date').valueAsDate = new Date();
+
+function fmt(n){
+  const sign = n > 0 ? '+' : '';
+  return sign + n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+async function loadTrades(){
+  try{
+    const raw = localStorage.getItem('trades');
+    trades = raw ? JSON.parse(raw) : [];
+  }catch(e){
+    trades = [];
+  }
+  render();
+}
+
+async function persist(){
+  try{
+    localStorage.setItem('trades', JSON.stringify(trades));
+  }catch(e){
+    console.error('Speichern fehlgeschlagen', e);
+  }
+}
+
+function setDirection(d){
+  currentDirection = d;
+  document.getElementById('f-long').className = d === 'long' ? 'sel-long' : '';
+  document.getElementById('f-short').className = d === 'short' ? 'sel-short' : '';
+}
+setDirection('long');
+
+function togglePanel(){
+  document.getElementById('tradePanel').classList.toggle('open');
+}
+function closePanel(){
+  document.getElementById('tradePanel').classList.remove('open');
+  clearForm();
+}
+function clearForm(){
+  document.getElementById('f-pnl').value = '';
+  document.getElementById('f-asset').value = '';
+  document.getElementById('f-date').valueAsDate = new Date();
+  setDirection('long');
+}
+
+async function saveTrade(){
+  const pnl = parseFloat(document.getElementById('f-pnl').value);
+  const date = document.getElementById('f-date').value;
+  const asset = document.getElementById('f-asset').value.trim();
+  if(!date || isNaN(pnl) || !asset){
+    alert('Bitte Datum, Asset und P&L ausfüllen.');
+    return;
+  }
+  const trade = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+    date,
+    direction: currentDirection,
+    asset,
+    pnl
+  };
+  trades.push(trade);
+  await persist();
+  closePanel();
+  render();
+}
+
+async function deleteTrade(id){
+  trades = trades.filter(t => t.id !== id);
+  await persist();
+  render();
+}
+
+function renderFilters(){
+  const el = document.getElementById('filterChips');
+  el.innerHTML = '';
+  FILTERS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (currentFilter === c ? ' active' : '');
+    b.textContent = c;
+    b.onclick = () => { currentFilter = c; render(); };
+    el.appendChild(b);
+  });
+}
+
+function renderStats(filtered){
+  const total = filtered.length;
+  const pnls = filtered.map(t => t.pnl);
+  const wins = pnls.filter(p => p > 0);
+  const losses = pnls.filter(p => p < 0);
+  const totalPnl = pnls.reduce((a,b) => a+b, 0);
+  const winRate = total ? (wins.length / total * 100) : 0;
+  const avgWin = wins.length ? wins.reduce((a,b)=>a+b,0)/wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((a,b)=>a+b,0)/losses.length) : 0;
+  const lossSum = Math.abs(losses.reduce((a,b)=>a+b,0));
+  const winSum = wins.reduce((a,b)=>a+b,0);
+  let profitFactor = '–';
+  if(lossSum > 0) profitFactor = (winSum/lossSum).toFixed(2);
+  else if(winSum > 0) profitFactor = '∞';
+
+  const hero = document.getElementById('heroPnl');
+  hero.textContent = fmt(totalPnl);
+  hero.className = 'hero-num ' + (totalPnl > 0 ? 'gain' : totalPnl < 0 ? 'loss' : 'neutral');
+
+  const stats = [
+    ['Trades', total],
+    ['Trefferquote', total ? winRate.toFixed(1) + ' %' : '–'],
+    ['Profitfaktor', profitFactor],
+    ['Ø Gewinn', wins.length ? '+' + avgWin.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '–'],
+    ['Ø Verlust', losses.length ? '-' + avgLoss.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '–']
+  ];
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = '';
+  stats.forEach(([label,val]) => {
+    const d = document.createElement('div');
+    d.className = 'stat';
+    d.innerHTML = `<p class="kicker">${label}</p><div class="stat-val">${val}</div>`;
+    grid.appendChild(d);
+  });
+}
+
+function renderLedger(filtered){
+  const container = document.getElementById('ledgerContainer');
+  if(filtered.length === 0){
+    container.innerHTML = `<div class="empty">
+      <h3>Noch keine Einträge</h3>
+      <p>Trage deinen ersten Trade ein und beginne dein Journal.</p>
+    </div>`;
+    return;
+  }
+  const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
+  let html = `<div class="ledger">
+    <div class="row head">
+      <div>Datum</div><div>Richtung</div><div>Asset</div><div>P&L</div><div>Stempel</div><div></div>
+    </div>`;
+  sorted.forEach(t => {
+    const win = t.pnl > 0;
+    html += `<div class="row entry">
+      <div class="mono">${t.date ? t.date.split('-').reverse().join('.') : '–'}</div>
+      <div><span class="dir-tag ${t.direction}">${t.direction === 'long' ? 'Long' : 'Short'}</span></div>
+      <div class="sym">${t.asset || '–'}</div>
+      <div class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</div>
+      <div class="col-stamp"><span class="stamp ${win ? 'win' : 'lose'}">${win ? 'GEWINN' : 'VERLUST'}</span></div>
+      <div class="col-del"><button class="del-btn" onclick="deleteTrade('${t.id}')" aria-label="Trade löschen" title="Löschen">✕</button></div>
+    </div>`;
+  });
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function getFiltered(){
+  return trades.filter(t => {
+    if(currentFilter === 'Alle') return true;
+    if(currentFilter === 'Long') return t.direction === 'long';
+    if(currentFilter === 'Short') return t.direction === 'short';
+    return true;
+  });
+}
+
+function render(){
+  renderFilters();
+  const filtered = getFiltered();
+  renderStats(filtered);
+  renderLedger(filtered);
+}
+
+document.getElementById('toggleFormBtn').addEventListener('click', togglePanel);
+
+loadTrades();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+</script>
+</body>
+</html>
