@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --ink-950:#10151C;
@@ -29,10 +29,12 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background:var(--ink-950);
+    background:var(--ink-950) url('bg-texture.jpg') center top / cover no-repeat;
+    background-attachment:local;
     color:var(--parchment);
     font-family:'Inter',sans-serif;
     -webkit-font-smoothing:antialiased;
+    min-height:100vh;
   }
   .wrap{max-width:760px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
 
@@ -46,11 +48,11 @@
     margin-bottom:2rem;
   }
   h1{
-    font-family:'Fraunces',serif;
-    font-weight:500;
-    font-size:2.1rem;
+    font-family:'Inter',sans-serif;
+    font-weight:800;
+    font-size:1.3rem;
     margin:0;
-    letter-spacing:0.2px;
+    letter-spacing:-0.01em;
   }
   .kicker{
     font-size:0.72rem;
@@ -60,40 +62,74 @@
     margin:0 0 0.35rem;
   }
   .date-badge{
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
     font-size:0.78rem;
     color:var(--parchment-dim);
   }
 
-  .hero{margin:1.8rem 0 2.4rem;}
-  .hero .kicker{margin-bottom:0.3rem;}
+  .hero{margin:1.2rem 0 1.6rem;}
+  .hero .kicker{margin-bottom:0.25rem;}
   .hero-num{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:3.1rem;
-    font-weight:500;
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:1.9rem;
+    font-weight:700;
     line-height:1;
   }
   .gain{color:var(--gain);}
   .loss{color:var(--loss);}
   .neutral{color:var(--parchment-dim);}
 
+  .balance-edit-input{
+    background:var(--ink-850);
+    border:1px solid var(--gold);
+    color:var(--parchment);
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:0.98rem;
+    font-weight:500;
+    width:100%;
+    padding:0.05rem 0.2rem;
+    border-radius:2px;
+  }
+
+  .balance-row{
+    margin-bottom:1.6rem;
+    padding-bottom:1.4rem;
+    border-bottom:1px solid var(--ink-700);
+  }
+  .balance-row .kicker{margin-bottom:0.25rem;}
+  .balance-num{
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:1.3rem;
+    font-weight:500;
+    color:var(--parchment);
+    cursor:pointer;
+    border-bottom:1px dashed var(--muted);
+    display:inline-block;
+  }
+
   .stats{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    display:flex;
+    flex-wrap:wrap;
     gap:1px;
     background:var(--ink-700);
     border:1px solid var(--ink-700);
-    margin-bottom:2.4rem;
+    margin-bottom:1.6rem;
   }
   .stat{
     background:var(--ink-900);
-    padding:0.95rem 1.1rem;
+    padding:0.55rem 0.7rem;
+    flex:1 1 105px;
   }
-  .stat .kicker{margin-bottom:0.4rem;}
+  .stat .kicker{margin-bottom:0.2rem;font-size:0.62rem;}
   .stat-val{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:1.3rem;
-    font-weight:500;
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:0.98rem;
+    font-weight:600;
   }
 
   .equity-card{
@@ -102,7 +138,50 @@
     padding:1.1rem 1.2rem 0.6rem;
     margin-bottom:2.4rem;
   }
-  .equity-card .kicker{margin-bottom:0.6rem;}
+  .equity-head{
+    display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:0.5rem;
+    margin-bottom:0.6rem;
+  }
+  .equity-head .kicker{margin-bottom:0;}
+  .period-nav{
+    display:flex;align-items:center;gap:0.5rem;
+  }
+  .period-arrow{
+    background:none;
+    border:1px solid var(--ink-700);
+    color:var(--parchment-dim);
+    width:24px;height:24px;
+    border-radius:2px;
+    cursor:pointer;
+    font-size:0.85rem;
+    line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    padding:0;
+  }
+  .period-arrow:hover{border-color:var(--gold);color:var(--gold);}
+  .period-arrow:active{background:var(--gold-soft);}
+  .period-active{
+    font-family:'Inter',sans-serif;
+    font-size:0.78rem;
+    font-weight:500;
+    color:var(--gold);
+    min-width:64px;
+    text-align:center;
+  }
+  .equity-viewport{overflow:hidden;}
+  #equityChart{
+    transition:transform 0.22s ease, opacity 0.22s ease;
+  }
+  .period-label{
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-weight:500;
+    font-size:0.78rem;
+    color:var(--gold);
+    margin:0 0 0.6rem;
+  }
+  .equity-card{touch-action:pan-y;}
   .equity-empty{
     color:var(--parchment-dim);
     font-size:0.82rem;
@@ -167,9 +246,9 @@
     margin-bottom:1.1rem;
   }
   .panel-head h2{
-    font-family:'Fraunces',serif;
-    font-weight:500;
-    font-size:1.15rem;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:1.1rem;
     margin:0;
   }
   .modal-close{
@@ -227,7 +306,7 @@
   }
   .row{
     display:grid;
-    grid-template-columns:100px 90px 1fr 1fr 130px 32px;
+    grid-template-columns:100px 90px 1fr 1fr 32px;
     gap:0.6rem;
     align-items:center;
     padding:0.75rem 1rem;
@@ -243,7 +322,7 @@
     background:var(--ink-850);
   }
   .row.entry:nth-child(even){background:var(--ink-850);}
-  .mono{font-family:'IBM Plex Mono',monospace;}
+  .mono{font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;}
   .sym{font-weight:500;}
   .dir-tag{
     font-size:0.72rem;
@@ -254,19 +333,6 @@
   }
   .dir-tag.long{color:var(--gain);border:1px solid var(--gain);}
   .dir-tag.short{color:var(--loss);border:1px solid var(--loss);}
-  .stamp{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.62rem;
-    letter-spacing:0.08em;
-    padding:0.2rem 0.45rem;
-    border:2px solid;
-    border-radius:3px;
-    transform:rotate(-6deg);
-    display:inline-block;
-    text-align:center;
-  }
-  .stamp.win{color:var(--gain);border-color:var(--gain);}
-  .stamp.lose{color:var(--loss);border-color:var(--loss);}
   .del-btn{
     background:none;border:none;color:var(--muted);
     cursor:pointer;font-size:0.95rem;
@@ -279,7 +345,7 @@
     color:var(--parchment-dim);
   }
   .empty h3{
-    font-family:'Fraunces',serif;font-weight:500;
+    font-family:'Inter',sans-serif;font-weight:700;
     color:var(--parchment);margin:0 0 0.4rem;
   }
 
@@ -291,7 +357,6 @@
       padding-right:2.5rem;
     }
     .row.head{display:none;}
-    .col-stamp{grid-column:1/-1;}
     .col-del{position:absolute;right:1rem;top:0.75rem;}
   }
 </style>
@@ -309,15 +374,30 @@
   <div class="under"></div>
 
   <div class="hero">
-    <p class="kicker">Gesamtergebnis</p>
+    <p class="kicker" id="heroLabel">Gesamtergebnis</p>
     <div class="hero-num neutral" id="heroPnl">0,00</div>
+  </div>
+
+  <div class="balance-row">
+    <p class="kicker">Kontostand</p>
+    <div class="balance-num" id="balanceNum" onclick="startEditBalance()">0,00</div>
   </div>
 
   <div class="stats" id="statsGrid"></div>
 
-  <div class="equity-card">
-    <p class="kicker">Equity Curve</p>
-    <div id="equityChart"></div>
+  <div class="equity-card" id="equityCard">
+    <div class="equity-head">
+      <p class="kicker">Equity Curve</p>
+      <div class="period-nav">
+        <button type="button" class="period-arrow" id="periodPrev" aria-label="Vorheriger Zeitraum">‹</button>
+        <span class="period-active" id="periodActive"></span>
+        <button type="button" class="period-arrow" id="periodNext" aria-label="Nächster Zeitraum">›</button>
+      </div>
+    </div>
+    <p class="period-label" id="periodLabel"></p>
+    <div class="equity-viewport">
+      <div id="equityChart"></div>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -365,9 +445,21 @@
 
 <script>
 let trades = [];
+let startBalance = 0;
 let currentFilter = 'Alle';
+let currentPeriod = 'monthly';
 let currentDirection = 'long';
 const FILTERS = ['Alle','Long','Short'];
+const PERIODS = [['daily','Täglich'],['monthly','Monatlich'],['annually','Jährlich']];
+
+function loadStartBalance(){
+  try{
+    const raw = localStorage.getItem('startBalance');
+    startBalance = raw ? parseFloat(raw) : 0;
+  }catch(e){
+    startBalance = 0;
+  }
+}
 
 document.getElementById('today').textContent = new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 document.getElementById('f-date').valueAsDate = new Date();
@@ -458,6 +550,46 @@ function renderFilters(){
   });
 }
 
+function renderPeriodLabel(){
+  const today = new Date();
+  let text = '';
+  if(currentPeriod === 'daily'){
+    text = today.toLocaleDateString('de-DE', {day:'numeric', month:'long', year:'numeric'});
+  } else if(currentPeriod === 'annually'){
+    text = today.toLocaleDateString('de-DE', {year:'numeric'});
+  } else {
+    text = today.toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+  }
+  document.getElementById('periodLabel').textContent = text;
+}
+
+function renderPeriodNav(){
+  document.getElementById('periodActive').textContent = PERIODS.find(([k]) => k === currentPeriod)[1];
+}
+
+function cyclePeriod(dir){
+  const idx = PERIODS.findIndex(([k]) => k === currentPeriod);
+  const nextIdx = (idx + dir + PERIODS.length) % PERIODS.length;
+  currentPeriod = PERIODS[nextIdx][0];
+  render();
+}
+
+function slideToPeriod(dir){
+  const chart = document.getElementById('equityChart');
+  chart.style.transform = `translateX(${dir * -260}px)`;
+  chart.style.opacity = '0';
+  setTimeout(() => {
+    cyclePeriod(dir);
+    const fresh = document.getElementById('equityChart');
+    fresh.style.transition = 'none';
+    fresh.style.transform = `translateX(${dir * 260}px)`;
+    void fresh.offsetWidth;
+    fresh.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+    fresh.style.transform = 'translateX(0)';
+    fresh.style.opacity = '1';
+  }, 220);
+}
+
 function renderStats(filtered){
   const total = filtered.length;
   const pnls = filtered.map(t => t.pnl);
@@ -473,9 +605,18 @@ function renderStats(filtered){
   if(lossSum > 0) profitFactor = (winSum/lossSum).toFixed(2);
   else if(winSum > 0) profitFactor = '∞';
 
+  const periodLabel = PERIODS.find(([k]) => k === currentPeriod)[1];
+  document.getElementById('heroLabel').textContent = 'Ergebnis · ' + periodLabel;
+
   const hero = document.getElementById('heroPnl');
   hero.textContent = fmt(totalPnl);
   hero.className = 'hero-num ' + (totalPnl > 0 ? 'gain' : totalPnl < 0 ? 'loss' : 'neutral');
+
+  const accountBalance = startBalance + trades.reduce((s,t) => s + t.pnl, 0);
+  const balanceEl = document.getElementById('balanceNum');
+  if(balanceEl){
+    balanceEl.textContent = accountBalance.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
 
   const stats = [
     ['Trades', total],
@@ -494,6 +635,24 @@ function renderStats(filtered){
   });
 }
 
+function startEditBalance(){
+  const el = document.getElementById('balanceNum');
+  el.outerHTML = `<input type="number" step="any" id="balanceInput" class="balance-edit-input" value="${startBalance.toFixed(2)}">`;
+  const input = document.getElementById('balanceInput');
+  input.focus();
+  input.select();
+  input.addEventListener('blur', commitBalanceEdit);
+  input.addEventListener('keydown', (e) => { if(e.key === 'Enter') input.blur(); });
+}
+
+function commitBalanceEdit(){
+  const input = document.getElementById('balanceInput');
+  const val = parseFloat(input.value);
+  startBalance = isNaN(val) ? 0 : val;
+  try{ localStorage.setItem('startBalance', startBalance); }catch(e){}
+  render();
+}
+
 function renderLedger(filtered){
   const container = document.getElementById('ledgerContainer');
   if(filtered.length === 0){
@@ -506,7 +665,7 @@ function renderLedger(filtered){
   const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
   let html = `<div class="ledger">
     <div class="row head">
-      <div>Datum</div><div>Richtung</div><div>Asset</div><div>P&L</div><div>Stempel</div><div></div>
+      <div>Datum</div><div>Richtung</div><div>Asset</div><div>P&L</div><div></div>
     </div>`;
   sorted.forEach(t => {
     const win = t.pnl > 0;
@@ -515,7 +674,6 @@ function renderLedger(filtered){
       <div><span class="dir-tag ${t.direction}">${t.direction === 'long' ? 'Long' : 'Short'}</span></div>
       <div class="sym">${t.asset || '–'}</div>
       <div class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</div>
-      <div class="col-stamp"><span class="stamp ${win ? 'win' : 'lose'}">${win ? 'GEWINN' : 'VERLUST'}</span></div>
       <div class="col-del"><button class="del-btn" onclick="deleteTrade('${t.id}')" aria-label="Trade löschen" title="Löschen">✕</button></div>
     </div>`;
   });
@@ -525,11 +683,15 @@ function renderLedger(filtered){
 
 function renderEquityCurve(filtered){
   const container = document.getElementById('equityChart');
+  if(filtered.length === 0){
+    container.innerHTML = '<div class="equity-empty">Keine Trades in diesem Zeitraum.</div>';
+    return;
+  }
   if(filtered.length < 2){
     container.innerHTML = '<div class="equity-empty">Noch nicht genug Einträge für eine Kurve.</div>';
     return;
   }
-  const sorted = [...filtered].sort((a,b) => a.date.localeCompare(b.date));
+  const sorted = [...filtered].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   let running = 0;
   const points = sorted.map(t => { running += t.pnl; return running; });
   points.unshift(0);
@@ -538,7 +700,8 @@ function renderEquityCurve(filtered){
   const min = Math.min(0, ...points);
   const max = Math.max(0, ...points);
   const range = (max - min) || 1;
-  const stepX = (w - padX*2) / (points.length - 1);
+  const slots = Math.max(50, points.length - 1);
+  const stepX = (w - padX*2) / slots;
 
   const coords = points.map((v, i) => {
     const x = padX + i * stepX;
@@ -570,16 +733,73 @@ function getFiltered(){
   });
 }
 
+function getDashboardFiltered(base){
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const monthStr = todayStr.slice(0,7);
+  const yearStr = todayStr.slice(0,4);
+  return base.filter(t => {
+    if(currentPeriod === 'daily') return t.date === todayStr;
+    if(currentPeriod === 'annually') return t.date.slice(0,4) === yearStr;
+    return t.date.slice(0,7) === monthStr;
+  });
+}
+
 function render(){
   renderFilters();
+  renderPeriodNav();
+  renderPeriodLabel();
   const filtered = getFiltered();
-  renderStats(filtered);
-  renderEquityCurve(filtered);
+  const dashFiltered = getDashboardFiltered(filtered);
+  renderStats(dashFiltered);
+  renderEquityCurve(dashFiltered);
   renderLedger(filtered);
 }
 
 document.getElementById('toggleFormBtn').addEventListener('click', togglePanel);
 
+(function setupSwipe(){
+  const card = document.getElementById('equityCard');
+  let startX = 0, startY = 0, dragging = false;
+
+  card.addEventListener('touchstart', (e) => {
+    startX = e.changedTouches[0].clientX;
+    startY = e.changedTouches[0].clientY;
+    dragging = true;
+    const chart = document.getElementById('equityChart');
+    chart.style.transition = 'none';
+  }, {passive:true});
+
+  card.addEventListener('touchmove', (e) => {
+    if(!dragging) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if(Math.abs(dx) > Math.abs(dy)){
+      const chart = document.getElementById('equityChart');
+      chart.style.transform = `translateX(${dx}px)`;
+      chart.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx)/260));
+    }
+  }, {passive:true});
+
+  card.addEventListener('touchend', (e) => {
+    dragging = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    const chart = document.getElementById('equityChart');
+    chart.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+    if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)){
+      slideToPeriod(dx < 0 ? 1 : -1);
+    } else {
+      chart.style.transform = 'translateX(0)';
+      chart.style.opacity = '1';
+    }
+  }, {passive:true});
+
+  document.getElementById('periodPrev').addEventListener('click', () => slideToPeriod(-1));
+  document.getElementById('periodNext').addEventListener('click', () => slideToPeriod(1));
+})();
+
+loadStartBalance();
 loadTrades();
 
 if ('serviceWorker' in navigator) {

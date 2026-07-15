@@ -1,5 +1,5 @@
-const CACHE_NAME = 'handelsjournal-v1';
-const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE_NAME = 'handelsjournal-v2';
+const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './bg-texture.jpg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
