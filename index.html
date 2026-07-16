@@ -14,10 +14,10 @@
 <style>
   :root{
     --ink-950:#10151C;
-    --ink-900:#171E27;
-    --ink-850:#1C2430;
-    --ink-800:#212B37;
-    --ink-700:#2C3846;
+    --ink-900:rgba(26,30,34,0.58);
+    --ink-850:rgba(30,34,39,0.55);
+    --ink-800:rgba(34,39,45,0.55);
+    --ink-700:rgba(70,72,74,0.45);
     --parchment:#EDE7D9;
     --parchment-dim:#A9A290;
     --muted:#7D8894;
@@ -30,7 +30,7 @@
   body{
     margin:0;
     background:var(--ink-950) url('bg-texture.jpg') center top / cover no-repeat;
-    background-attachment:local;
+    background-attachment:fixed;
     color:var(--parchment);
     font-family:'Inter',sans-serif;
     -webkit-font-smoothing:antialiased;
@@ -54,18 +54,24 @@
     margin:0;
     letter-spacing:-0.01em;
   }
+  .stj-mark{color:var(--gold);}
+  .stj-sub{
+    color:var(--parchment-dim);
+    font-weight:500;
+    font-size:0.75em;
+    letter-spacing:0;
+  }
+  .add-trade-wrap{
+    display:flex;
+    justify-content:center;
+    margin:0.5rem 0 3rem;
+  }
   .kicker{
     font-size:0.72rem;
     letter-spacing:0.14em;
     text-transform:uppercase;
     color:var(--muted);
     margin:0 0 0.35rem;
-  }
-  .date-badge{
-    font-family:'Inter',sans-serif;
-    font-variant-numeric:tabular-nums;
-    font-size:0.78rem;
-    color:var(--parchment-dim);
   }
 
   .hero{margin:1.2rem 0 1.6rem;}
@@ -123,6 +129,8 @@
     background:var(--ink-900);
     padding:0.55rem 0.7rem;
     flex:1 1 105px;
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
   }
   .stat .kicker{margin-bottom:0.2rem;font-size:0.62rem;}
   .stat-val{
@@ -137,6 +145,8 @@
     border:1px solid var(--ink-700);
     padding:1.1rem 1.2rem 0.6rem;
     margin-bottom:2.4rem;
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
   }
   .equity-head{
     display:flex;justify-content:space-between;align-items:center;
@@ -189,26 +199,6 @@
     text-align:center;
   }
 
-  .toolbar{
-    display:flex;flex-wrap:wrap;gap:0.6rem;
-    align-items:center;justify-content:space-between;
-    margin-bottom:1.4rem;
-  }
-  .filters{display:flex;flex-wrap:wrap;gap:0.4rem;}
-  .chip{
-    font-family:'Inter',sans-serif;
-    font-size:0.78rem;
-    padding:0.35rem 0.75rem;
-    border:1px solid var(--ink-700);
-    background:transparent;
-    color:var(--parchment-dim);
-    cursor:pointer;
-    border-radius:2px;
-  }
-  .chip.active{
-    border-color:var(--gold);
-    color:var(--gold);
-  }
   .btn{
     font-family:'Inter',sans-serif;
     font-size:0.82rem;
@@ -240,6 +230,8 @@
     max-width:460px;
     max-height:90vh;
     overflow-y:auto;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
   }
   .panel-head{
     display:flex;justify-content:space-between;align-items:center;
@@ -300,76 +292,13 @@
   }
   .btn-ghost:hover{background:var(--ink-800);}
 
-  .ledger{
-    border:1px solid var(--ink-700);
-    background:var(--ink-900);
-  }
-  .row{
-    display:grid;
-    grid-template-columns:100px 90px 1fr 1fr 32px;
-    gap:0.6rem;
-    align-items:center;
-    padding:0.75rem 1rem;
-    border-bottom:1px solid var(--ink-800);
-    font-size:0.85rem;
-  }
-  .row:last-child{border-bottom:none;}
-  .row.head{
-    font-size:0.68rem;
-    letter-spacing:0.08em;
-    text-transform:uppercase;
-    color:var(--muted);
-    background:var(--ink-850);
-  }
-  .row.entry:nth-child(even){background:var(--ink-850);}
-  .mono{font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;}
-  .sym{font-weight:500;}
-  .dir-tag{
-    font-size:0.72rem;
-    padding:0.15rem 0.4rem;
-    border-radius:2px;
-    display:inline-block;
-    width:fit-content;
-  }
-  .dir-tag.long{color:var(--gain);border:1px solid var(--gain);}
-  .dir-tag.short{color:var(--loss);border:1px solid var(--loss);}
-  .del-btn{
-    background:none;border:none;color:var(--muted);
-    cursor:pointer;font-size:0.95rem;
-  }
-  .del-btn:hover{color:var(--loss);}
-
-  .empty{
-    text-align:center;
-    padding:3rem 1rem;
-    color:var(--parchment-dim);
-  }
-  .empty h3{
-    font-family:'Inter',sans-serif;font-weight:700;
-    color:var(--parchment);margin:0 0 0.4rem;
-  }
-
-  @media(max-width:600px){
-    .row{
-      grid-template-columns:1fr 1fr;
-      row-gap:0.3rem;
-      position:relative;
-      padding-right:2.5rem;
-    }
-    .row.head{display:none;}
-    .col-del{position:absolute;right:1rem;top:0.75rem;}
-  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="ledger-head">
-    <div>
-      <p class="kicker">Handelsjournal</p>
-      <h1>Alle Trades im Überblick</h1>
-    </div>
-    <div class="date-badge" id="today"></div>
+    <h1><span class="stj-mark">STJ</span> <span class="stj-sub">Simple Trading Journal</span></h1>
   </div>
   <div class="under"></div>
 
@@ -400,8 +329,7 @@
     </div>
   </div>
 
-  <div class="toolbar">
-    <div class="filters" id="filterChips"></div>
+  <div class="add-trade-wrap">
     <button class="btn" id="toggleFormBtn">+ Neuer Trade</button>
   </div>
 
@@ -439,17 +367,13 @@
     </div>
   </div>
 
-  <div id="ledgerContainer"></div>
-
 </div>
 
 <script>
 let trades = [];
 let startBalance = 0;
-let currentFilter = 'Alle';
 let currentPeriod = 'monthly';
 let currentDirection = 'long';
-const FILTERS = ['Alle','Long','Short'];
 const PERIODS = [['daily','Täglich'],['monthly','Monatlich'],['annually','Jährlich']];
 
 function loadStartBalance(){
@@ -461,7 +385,6 @@ function loadStartBalance(){
   }
 }
 
-document.getElementById('today').textContent = new Date().toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 document.getElementById('f-date').valueAsDate = new Date();
 
 function fmt(n){
@@ -530,24 +453,6 @@ async function saveTrade(){
   await persist();
   closePanel();
   render();
-}
-
-async function deleteTrade(id){
-  trades = trades.filter(t => t.id !== id);
-  await persist();
-  render();
-}
-
-function renderFilters(){
-  const el = document.getElementById('filterChips');
-  el.innerHTML = '';
-  FILTERS.forEach(c => {
-    const b = document.createElement('button');
-    b.className = 'chip' + (currentFilter === c ? ' active' : '');
-    b.textContent = c;
-    b.onclick = () => { currentFilter = c; render(); };
-    el.appendChild(b);
-  });
 }
 
 function renderPeriodLabel(){
@@ -637,48 +542,22 @@ function renderStats(filtered){
 
 function startEditBalance(){
   const el = document.getElementById('balanceNum');
-  el.outerHTML = `<input type="number" step="any" id="balanceInput" class="balance-edit-input" value="${startBalance.toFixed(2)}">`;
+  el.innerHTML = `<input type="number" step="any" id="balanceInput" class="balance-edit-input" value="${startBalance.toFixed(2)}">`;
   const input = document.getElementById('balanceInput');
   input.focus();
   input.select();
   input.addEventListener('blur', commitBalanceEdit);
+  input.addEventListener('change', commitBalanceEdit);
   input.addEventListener('keydown', (e) => { if(e.key === 'Enter') input.blur(); });
 }
 
 function commitBalanceEdit(){
   const input = document.getElementById('balanceInput');
+  if(!input) return;
   const val = parseFloat(input.value);
   startBalance = isNaN(val) ? 0 : val;
-  try{ localStorage.setItem('startBalance', startBalance); }catch(e){}
+  try{ localStorage.setItem('startBalance', String(startBalance)); }catch(e){}
   render();
-}
-
-function renderLedger(filtered){
-  const container = document.getElementById('ledgerContainer');
-  if(filtered.length === 0){
-    container.innerHTML = `<div class="empty">
-      <h3>Noch keine Einträge</h3>
-      <p>Trage deinen ersten Trade ein und beginne dein Journal.</p>
-    </div>`;
-    return;
-  }
-  const sorted = [...filtered].sort((a,b) => b.date.localeCompare(a.date));
-  let html = `<div class="ledger">
-    <div class="row head">
-      <div>Datum</div><div>Richtung</div><div>Asset</div><div>P&L</div><div></div>
-    </div>`;
-  sorted.forEach(t => {
-    const win = t.pnl > 0;
-    html += `<div class="row entry">
-      <div class="mono">${t.date ? t.date.split('-').reverse().join('.') : '–'}</div>
-      <div><span class="dir-tag ${t.direction}">${t.direction === 'long' ? 'Long' : 'Short'}</span></div>
-      <div class="sym">${t.asset || '–'}</div>
-      <div class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</div>
-      <div class="col-del"><button class="del-btn" onclick="deleteTrade('${t.id}')" aria-label="Trade löschen" title="Löschen">✕</button></div>
-    </div>`;
-  });
-  html += `</div>`;
-  container.innerHTML = html;
 }
 
 function renderEquityCurve(filtered){
@@ -724,15 +603,6 @@ function renderEquityCurve(filtered){
     </svg>`;
 }
 
-function getFiltered(){
-  return trades.filter(t => {
-    if(currentFilter === 'Alle') return true;
-    if(currentFilter === 'Long') return t.direction === 'long';
-    if(currentFilter === 'Short') return t.direction === 'short';
-    return true;
-  });
-}
-
 function getDashboardFiltered(base){
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
@@ -746,14 +616,11 @@ function getDashboardFiltered(base){
 }
 
 function render(){
-  renderFilters();
   renderPeriodNav();
   renderPeriodLabel();
-  const filtered = getFiltered();
-  const dashFiltered = getDashboardFiltered(filtered);
+  const dashFiltered = getDashboardFiltered(trades);
   renderStats(dashFiltered);
   renderEquityCurve(dashFiltered);
-  renderLedger(filtered);
 }
 
 document.getElementById('toggleFormBtn').addEventListener('click', togglePanel);
