@@ -14,10 +14,10 @@
 <style>
   :root{
     --ink-950:#10151C;
-    --ink-900:rgba(26,30,34,0.58);
-    --ink-850:rgba(30,34,39,0.55);
-    --ink-800:rgba(34,39,45,0.55);
-    --ink-700:rgba(70,72,74,0.45);
+    --ink-900:rgba(26,30,34,0.32);
+    --ink-850:rgba(30,34,39,0.30);
+    --ink-800:rgba(34,39,45,0.30);
+    --ink-700:rgba(90,92,94,0.32);
     --parchment:#EDE7D9;
     --parchment-dim:#A9A290;
     --muted:#7D8894;
@@ -64,8 +64,37 @@
   .add-trade-wrap{
     display:flex;
     justify-content:center;
+    gap:0.7rem;
     margin:0.5rem 0 3rem;
+    flex-wrap:wrap;
   }
+  #editList{max-height:60vh;overflow-y:auto;}
+  .edit-row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0.65rem 0;
+    border-bottom:1px solid var(--ink-700);
+  }
+  .edit-row:last-child{border-bottom:none;}
+  .edit-row-info{
+    display:flex;flex-direction:column;gap:0.2rem;
+    font-size:0.82rem;
+  }
+  .mono{font-variant-numeric:tabular-nums;}
+  .edit-row-info .mono{font-weight:600;font-size:0.88rem;}
+  .edit-row-actions{display:flex;gap:0.4rem;}
+  .icon-btn{
+    background:none;
+    border:1px solid var(--ink-700);
+    color:var(--parchment-dim);
+    width:28px;height:28px;
+    border-radius:2px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:0.85rem;
+    padding:0;
+  }
+  .icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .icon-btn.danger:hover{border-color:var(--loss);color:var(--loss);}
   .kicker{
     font-size:0.72rem;
     letter-spacing:0.14em;
@@ -76,12 +105,19 @@
 
   .hero{margin:1.2rem 0 1.6rem;}
   .hero .kicker{margin-bottom:0.25rem;}
+  .hero-num-row{display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;}
   .hero-num{
     font-family:'Inter',sans-serif;
     font-variant-numeric:tabular-nums;
     font-size:1.9rem;
     font-weight:700;
     line-height:1;
+  }
+  .hero-pct{
+    font-family:'Inter',sans-serif;
+    font-variant-numeric:tabular-nums;
+    font-size:0.95rem;
+    font-weight:600;
   }
   .gain{color:var(--gain);}
   .loss{color:var(--loss);}
@@ -304,7 +340,10 @@
 
   <div class="hero">
     <p class="kicker" id="heroLabel">Gesamtergebnis</p>
-    <div class="hero-num neutral" id="heroPnl">0,00</div>
+    <div class="hero-num-row">
+      <div class="hero-num neutral" id="heroPnl">0,00</div>
+      <div class="hero-pct neutral" id="heroPct">0,0 %</div>
+    </div>
   </div>
 
   <div class="balance-row">
@@ -331,12 +370,23 @@
 
   <div class="add-trade-wrap">
     <button class="btn" id="toggleFormBtn">+ Neuer Trade</button>
+    <button class="btn btn-ghost" id="editTradesBtn">Edit Trades</button>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Trades bearbeiten</h2>
+        <button type="button" class="modal-close" id="editModalCloseBtn" aria-label="Schließen">✕</button>
+      </div>
+      <div id="editList"></div>
+    </div>
   </div>
 
   <div class="modal-overlay" id="tradeModal">
     <div class="panel" id="tradePanel">
       <div class="panel-head">
-        <h2>Neuer Eintrag</h2>
+        <h2 id="tradeModalTitle">Neuer Eintrag</h2>
         <button type="button" class="modal-close" onclick="closePanel()" aria-label="Schließen">✕</button>
       </div>
       <div class="grid-form">
@@ -362,7 +412,7 @@
       </div>
       <div class="panel-actions">
         <button class="btn btn-ghost" onclick="closePanel()">Abbrechen</button>
-        <button class="btn" onclick="saveTrade()">Trade speichern</button>
+        <button class="btn" id="saveTradeBtn" onclick="saveTrade()">Trade speichern</button>
       </div>
     </div>
   </div>
@@ -374,6 +424,7 @@ let trades = [];
 let startBalance = 0;
 let currentPeriod = 'monthly';
 let currentDirection = 'long';
+let editingId = null;
 const PERIODS = [['daily','Täglich'],['monthly','Monatlich'],['annually','Jährlich']];
 
 function loadStartBalance(){
@@ -423,6 +474,9 @@ function togglePanel(){
 function closePanel(){
   document.getElementById('tradeModal').classList.remove('open');
   clearForm();
+  editingId = null;
+  document.getElementById('tradeModalTitle').textContent = 'Neuer Eintrag';
+  document.getElementById('saveTradeBtn').textContent = 'Trade speichern';
 }
 document.getElementById('tradeModal').addEventListener('click', (e) => {
   if(e.target.id === 'tradeModal') closePanel();
@@ -442,16 +496,82 @@ async function saveTrade(){
     alert('Bitte Datum, Asset und P&L ausfüllen.');
     return;
   }
-  const trade = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
-    date,
-    direction: currentDirection,
-    asset,
-    pnl
-  };
-  trades.push(trade);
+  if(editingId){
+    const existing = trades.find(t => t.id === editingId);
+    if(existing){
+      existing.date = date;
+      existing.direction = currentDirection;
+      existing.asset = asset;
+      existing.pnl = pnl;
+    }
+  } else {
+    trades.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      date,
+      direction: currentDirection,
+      asset,
+      pnl
+    });
+  }
   await persist();
   closePanel();
+  render();
+}
+
+function openEditModal(){
+  renderEditList();
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('open');
+}
+document.getElementById('editModal').addEventListener('click', (e) => {
+  if(e.target.id === 'editModal') closeEditModal();
+});
+document.getElementById('editModalCloseBtn').addEventListener('click', closeEditModal);
+document.getElementById('editTradesBtn').addEventListener('click', openEditModal);
+
+function renderEditList(){
+  const container = document.getElementById('editList');
+  if(trades.length === 0){
+    container.innerHTML = '<div class="equity-empty">Noch keine Trades vorhanden.</div>';
+    return;
+  }
+  const sorted = [...trades].sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  container.innerHTML = sorted.map(t => {
+    const win = t.pnl > 0;
+    const dateFmt = t.date ? t.date.split('-').reverse().join('.') : '–';
+    return `<div class="edit-row">
+      <div class="edit-row-info">
+        <span>${dateFmt} · ${t.asset || '–'} · ${t.direction === 'long' ? 'Long' : 'Short'}</span>
+        <span class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</span>
+      </div>
+      <div class="edit-row-actions">
+        <button type="button" class="icon-btn" onclick="startEditTrade('${t.id}')" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
+        <button type="button" class="icon-btn danger" onclick="removeTrade('${t.id}')" aria-label="Löschen" title="Löschen">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function startEditTrade(id){
+  const t = trades.find(x => x.id === id);
+  if(!t) return;
+  editingId = id;
+  document.getElementById('f-date').value = t.date;
+  document.getElementById('f-asset').value = t.asset;
+  document.getElementById('f-pnl').value = t.pnl;
+  setDirection(t.direction);
+  document.getElementById('tradeModalTitle').textContent = 'Trade bearbeiten';
+  document.getElementById('saveTradeBtn').textContent = 'Änderungen speichern';
+  closeEditModal();
+  document.getElementById('tradeModal').classList.add('open');
+}
+
+async function removeTrade(id){
+  trades = trades.filter(t => t.id !== id);
+  await persist();
+  renderEditList();
   render();
 }
 
@@ -518,6 +638,16 @@ function renderStats(filtered){
   hero.className = 'hero-num ' + (totalPnl > 0 ? 'gain' : totalPnl < 0 ? 'loss' : 'neutral');
 
   const accountBalance = startBalance + trades.reduce((s,t) => s + t.pnl, 0);
+
+  const heroPct = document.getElementById('heroPct');
+  if(accountBalance !== 0){
+    const pct = (totalPnl / accountBalance) * 100;
+    heroPct.textContent = '(' + (pct > 0 ? '+' : '') + pct.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' %)';
+    heroPct.className = 'hero-pct ' + (totalPnl > 0 ? 'gain' : totalPnl < 0 ? 'loss' : 'neutral');
+  } else {
+    heroPct.textContent = '';
+  }
+
   const balanceEl = document.getElementById('balanceNum');
   if(balanceEl){
     balanceEl.textContent = accountBalance.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
