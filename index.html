@@ -186,6 +186,16 @@
     border-radius:2px;
     margin-bottom:0.7rem;
   }
+  .settings-row select{
+    width:100%;
+    background:var(--ink-850);
+    border:1px solid var(--ink-700);
+    color:var(--parchment);
+    padding:0.5rem 0.6rem;
+    font-family:'Inter',sans-serif;
+    font-size:0.86rem;
+    border-radius:2px;
+  }
   .btn-danger{border-color:var(--loss);color:var(--loss);}
   .btn-danger:hover{background:rgba(208,122,99,0.15);}
   .theme-toggle{display:flex;gap:0.4rem;}
@@ -546,6 +556,16 @@
         </div>
       </div>
       <div class="settings-row">
+        <p class="kicker">Währung</p>
+        <select id="settingsCurrency">
+          <option value="EUR">Euro (€)</option>
+          <option value="USD">US-Dollar ($)</option>
+          <option value="GBP">Britisches Pfund (£)</option>
+          <option value="CHF">Schweizer Franken (CHF)</option>
+          <option value="JPY">Japanischer Yen (¥)</option>
+        </select>
+      </div>
+      <div class="settings-row">
         <p class="kicker">Startkapital</p>
         <input type="number" step="any" id="settingsStartBalance" placeholder="0,00">
         <button type="button" class="btn" id="settingsSaveBalanceBtn">Speichern</button>
@@ -598,6 +618,7 @@
 let trades = [];
 let startBalance = 0;
 let theme = 'dark';
+let currentCurrency = 'EUR';
 let currentPeriod = 'monthly';
 let currentDirection = 'long';
 let editingId = null;
@@ -630,7 +651,25 @@ function setTheme(t){
 document.getElementById('themeDarkBtn').addEventListener('click', () => setTheme('dark'));
 document.getElementById('themeDayBtn').addEventListener('click', () => setTheme('light'));
 
+function loadCurrency(){
+  try{
+    const raw = localStorage.getItem('currency');
+    currentCurrency = raw || 'EUR';
+  }catch(e){
+    currentCurrency = 'EUR';
+  }
+  const sel = document.getElementById('settingsCurrency');
+  if(sel) sel.value = currentCurrency;
+}
+
+document.getElementById('settingsCurrency').addEventListener('change', (e) => {
+  currentCurrency = e.target.value;
+  try{ localStorage.setItem('currency', currentCurrency); }catch(err){}
+  render();
+});
+
 loadTheme();
+loadCurrency();
 const PERIODS = [['daily','Täglich'],['monthly','Monatlich'],['annually','Jährlich']];
 
 function loadStartBalance(){
@@ -645,8 +684,20 @@ function loadStartBalance(){
 document.getElementById('f-date').valueAsDate = new Date();
 
 function fmt(n){
-  const sign = n > 0 ? '+' : '';
-  return sign + n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  try{
+    return new Intl.NumberFormat('de-DE',{style:'currency',currency:currentCurrency,signDisplay:'exceptZero'}).format(n);
+  }catch(e){
+    const sign = n > 0 ? '+' : '';
+    return sign + n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+}
+
+function fmtPlain(n){
+  try{
+    return new Intl.NumberFormat('de-DE',{style:'currency',currency:currentCurrency}).format(n);
+  }catch(e){
+    return n.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
 }
 
 async function loadTrades(){
@@ -752,8 +803,11 @@ function closeMenu(){
   document.getElementById('menuDropdown').classList.remove('open');
 }
 
+let statsMonth = null;
+
 function openStatsPage(){
   closeMenu();
+  if(!statsMonth) statsMonth = new Date().toISOString().slice(0,7);
   renderStatsPage();
   document.getElementById('statsPage').classList.add('open');
 }
@@ -762,6 +816,47 @@ function closeStatsPage(){
 }
 document.getElementById('menuStatsBtn').addEventListener('click', openStatsPage);
 document.getElementById('statsPageCloseBtn').addEventListener('click', closeStatsPage);
+
+function shiftStatsMonth(dir){
+  const [y,m] = statsMonth.split('-').map(Number);
+  const d = new Date(y, (m-1)+dir, 1);
+  statsMonth = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  renderStatsPage();
+}
+
+function renderStatsPage(){
+  const container = document.getElementById('statsPageContent');
+  const monthTrades = trades.filter(t => t.date.slice(0,7) === statsMonth);
+  const [y,m] = statsMonth.split('-').map(Number);
+  const monthLabel = new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+
+  const total = monthTrades.length;
+  const totalPnl = monthTrades.reduce((s,t) => s+t.pnl, 0);
+  const wins = monthTrades.filter(t => t.pnl > 0).length;
+  const winRate = total ? (wins/total*100) : 0;
+
+  const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
+
+  container.innerHTML = `
+    <div class="month-nav">
+      <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="Vorheriger Monat">‹</button>
+      <span class="month-nav-label">${monthLabel}</span>
+      <button type="button" class="period-arrow" id="statsMonthNext" aria-label="Nächster Monat">›</button>
+    </div>
+    <div class="stat-block">
+      <p class="kicker">Monatsjournal</p>
+      ${fmtRow('Anzahl Trades', total)}
+      ${fmtRow('Ergebnis', total ? fmt(totalPnl) : '–')}
+      ${fmtRow('Winrate', total ? winRate.toFixed(1) + ' %' : '–')}
+    </div>
+    <div class="stat-block">
+      <p class="kicker">Equity Curve</p>
+      <div id="statsPageChart">${buildEquityCurveSvg(monthTrades, 130)}</div>
+    </div>
+  `;
+  document.getElementById('statsMonthPrev').addEventListener('click', () => shiftStatsMonth(-1));
+  document.getElementById('statsMonthNext').addEventListener('click', () => shiftStatsMonth(1));
+}
 
 function openSettingsPage(){
   closeMenu();
@@ -960,15 +1055,15 @@ function renderStats(filtered){
 
   const balanceEl = document.getElementById('balanceNum');
   if(balanceEl){
-    balanceEl.textContent = accountBalance.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2});
+    balanceEl.textContent = fmtPlain(accountBalance);
   }
 
   const stats = [
     ['Trades', total],
     ['Trefferquote', total ? winRate.toFixed(1) + ' %' : '–'],
     ['Profitfaktor', profitFactor],
-    ['Ø Gewinn', wins.length ? '+' + avgWin.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '–'],
-    ['Ø Verlust', losses.length ? '-' + avgLoss.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) : '–']
+    ['Ø Gewinn', wins.length ? fmt(avgWin) : '–'],
+    ['Ø Verlust', losses.length ? fmt(-avgLoss) : '–']
   ];
   const grid = document.getElementById('statsGrid');
   grid.innerHTML = '';
@@ -1000,22 +1095,19 @@ function commitBalanceEdit(){
   render();
 }
 
-function renderEquityCurve(filtered){
-  const container = document.getElementById('equityChart');
+function buildEquityCurveSvg(filtered, height){
   if(filtered.length === 0){
-    container.innerHTML = '<div class="equity-empty">Keine Trades in diesem Zeitraum.</div>';
-    return;
+    return '<div class="equity-empty">Keine Trades in diesem Zeitraum.</div>';
   }
   if(filtered.length < 2){
-    container.innerHTML = '<div class="equity-empty">Noch nicht genug Einträge für eine Kurve.</div>';
-    return;
+    return '<div class="equity-empty">Noch nicht genug Einträge für eine Kurve.</div>';
   }
   const sorted = [...filtered].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   let running = 0;
   const points = sorted.map(t => { running += t.pnl; return running; });
   points.unshift(0);
 
-  const w = 600, h = 160, padX = 8, padY = 12;
+  const w = 600, h = height || 160, padX = 8, padY = 12;
   const min = Math.min(0, ...points);
   const max = Math.max(0, ...points);
   const range = (max - min) || 1;
@@ -1035,12 +1127,16 @@ function renderEquityCurve(filtered){
   const final = points[points.length - 1];
   const lineColor = final >= 0 ? '#6FB585' : '#D07A63';
 
-  container.innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" width="100%" height="160" preserveAspectRatio="none" role="img" aria-label="Equity Curve, Verlauf des kumulierten Ergebnisses">
+  return `
+    <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="Equity Curve, Verlauf des kumulierten Ergebnisses">
       <line x1="0" y1="${zeroY.toFixed(1)}" x2="${w}" y2="${zeroY.toFixed(1)}" stroke="#2C3846" stroke-width="1"/>
       <path d="${areaPath}" fill="${lineColor}" opacity="0.12" stroke="none"/>
       <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2"/>
     </svg>`;
+}
+
+function renderEquityCurve(filtered){
+  document.getElementById('equityChart').innerHTML = buildEquityCurveSvg(filtered, 160);
 }
 
 function getDashboardFiltered(base){
