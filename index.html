@@ -69,11 +69,21 @@
     margin:0;
     letter-spacing:-0.01em;
   }
-  .stj-mark{color:var(--gold);}
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:0.6rem;
+  }
+  .brand-logo{
+    height:38px;
+    width:38px;
+    display:block;
+    border-radius:50%;
+  }
   .stj-sub{
     color:var(--parchment-dim);
-    font-weight:500;
-    font-size:0.75em;
+    font-weight:600;
+    font-size:0.92rem;
     letter-spacing:0;
   }
   .add-trade-wrap{
@@ -135,6 +145,7 @@
   }
   body.light-mode .page-overlay{background:#EFEAE0;}
   .page-overlay.open{display:block;}
+  #statsPageContent{transition:transform 0.22s ease, opacity 0.22s ease;}
   .page-inner{max-width:760px;margin:0 auto;padding:1.6rem 1.5rem 4rem;}
   .page-head{
     display:flex;justify-content:space-between;align-items:center;
@@ -476,7 +487,10 @@
 <div class="wrap">
 
   <div class="ledger-head">
-    <h1><span class="stj-mark">STJ</span> <span class="stj-sub">Simple Trading Journal</span></h1>
+    <div class="brand">
+      <img src="icon-512.png" alt="STJ Logo" class="brand-logo">
+      <span class="stj-sub">Simple Trading Journal</span>
+    </div>
     <div class="menu-wrap">
       <button type="button" class="menu-btn" id="menuBtn" aria-label="Menü">☰</button>
       <div class="menu-dropdown" id="menuDropdown">
@@ -830,12 +844,34 @@ function renderStatsPage(){
   const [y,m] = statsMonth.split('-').map(Number);
   const monthLabel = new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
 
-  const total = monthTrades.length;
-  const totalPnl = monthTrades.reduce((s,t) => s+t.pnl, 0);
-  const wins = monthTrades.filter(t => t.pnl > 0).length;
-  const winRate = total ? (wins/total*100) : 0;
-
   const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
+
+  if(monthTrades.length === 0){
+    container.innerHTML = `
+      <div class="month-nav">
+        <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="Vorheriger Monat">‹</button>
+        <span class="month-nav-label">${monthLabel}</span>
+        <button type="button" class="period-arrow" id="statsMonthNext" aria-label="Nächster Monat">›</button>
+      </div>
+      <div class="equity-empty">Keine Trades in diesem Monat.</div>
+    `;
+    document.getElementById('statsMonthPrev').addEventListener('click', () => shiftStatsMonth(-1));
+    document.getElementById('statsMonthNext').addEventListener('click', () => shiftStatsMonth(1));
+    return;
+  }
+
+  const longs = monthTrades.filter(t => t.direction === 'long');
+  const shorts = monthTrades.filter(t => t.direction === 'short');
+  const wins = monthTrades.filter(t => t.pnl > 0);
+  const losses = monthTrades.filter(t => t.pnl < 0);
+  const sumPnl = arr => arr.reduce((s,t) => s+t.pnl, 0);
+  const winRateOf = arr => arr.length ? (arr.filter(t=>t.pnl>0).length/arr.length*100) : 0;
+  const best = monthTrades.reduce((mm,t) => t.pnl > (mm ? mm.pnl : -Infinity) ? t : mm, null);
+  const worst = monthTrades.reduce((mm,t) => t.pnl < (mm ? mm.pnl : Infinity) ? t : mm, null);
+  const totalPnl = sumPnl(monthTrades);
+  const winSum = sumPnl(wins);
+  const lossSum = Math.abs(sumPnl(losses));
+  const profitFactor = lossSum > 0 ? (winSum/lossSum).toFixed(2) : (winSum > 0 ? '∞' : '–');
 
   container.innerHTML = `
     <div class="month-nav">
@@ -845,9 +881,24 @@ function renderStatsPage(){
     </div>
     <div class="stat-block">
       <p class="kicker">Monatsjournal</p>
-      ${fmtRow('Anzahl Trades', total)}
-      ${fmtRow('Ergebnis', total ? fmt(totalPnl) : '–')}
-      ${fmtRow('Winrate', total ? winRate.toFixed(1) + ' %' : '–')}
+      ${fmtRow('Trades gesamt', monthTrades.length)}
+      ${fmtRow('Gesamtergebnis', fmt(totalPnl))}
+      ${fmtRow('Trefferquote', winRateOf(monthTrades).toFixed(1) + ' %')}
+      ${fmtRow('Profitfaktor', profitFactor)}
+      ${fmtRow('Bester Trade', best ? `${fmt(best.pnl)} · ${best.asset}` : '–')}
+      ${fmtRow('Schlechtester Trade', worst ? `${fmt(worst.pnl)} · ${worst.asset}` : '–')}
+    </div>
+    <div class="stat-block">
+      <p class="kicker">Long</p>
+      ${fmtRow('Anzahl', longs.length)}
+      ${fmtRow('Ergebnis', longs.length ? fmt(sumPnl(longs)) : '–')}
+      ${fmtRow('Trefferquote', longs.length ? winRateOf(longs).toFixed(1) + ' %' : '–')}
+    </div>
+    <div class="stat-block">
+      <p class="kicker">Short</p>
+      ${fmtRow('Anzahl', shorts.length)}
+      ${fmtRow('Ergebnis', shorts.length ? fmt(sumPnl(shorts)) : '–')}
+      ${fmtRow('Trefferquote', shorts.length ? winRateOf(shorts).toFixed(1) + ' %' : '–')}
     </div>
     <div class="stat-block">
       <p class="kicker">Equity Curve</p>
@@ -888,53 +939,6 @@ document.getElementById('settingsResetBtn').addEventListener('click', async () =
   render();
   closeSettingsPage();
 });
-
-function renderStatsPage(){
-  const container = document.getElementById('statsPageContent');
-  if(trades.length === 0){
-    container.innerHTML = '<div class="equity-empty">Noch keine Trades vorhanden.</div>';
-    return;
-  }
-  const all = trades;
-  const longs = all.filter(t => t.direction === 'long');
-  const shorts = all.filter(t => t.direction === 'short');
-  const wins = all.filter(t => t.pnl > 0);
-  const losses = all.filter(t => t.pnl < 0);
-  const sumPnl = arr => arr.reduce((s,t) => s+t.pnl, 0);
-  const winRateOf = arr => arr.length ? (arr.filter(t=>t.pnl>0).length/arr.length*100) : 0;
-  const best = all.reduce((m,t) => t.pnl > (m ? m.pnl : -Infinity) ? t : m, null);
-  const worst = all.reduce((m,t) => t.pnl < (m ? m.pnl : Infinity) ? t : m, null);
-  const totalPnl = sumPnl(all);
-  const winSum = sumPnl(wins);
-  const lossSum = Math.abs(sumPnl(losses));
-  const profitFactor = lossSum > 0 ? (winSum/lossSum).toFixed(2) : (winSum > 0 ? '∞' : '–');
-
-  const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
-
-  container.innerHTML = `
-    <div class="stat-block">
-      <p class="kicker">Gesamt (alle Zeit)</p>
-      ${fmtRow('Trades gesamt', all.length)}
-      ${fmtRow('Gesamtergebnis', fmt(totalPnl))}
-      ${fmtRow('Trefferquote', winRateOf(all).toFixed(1) + ' %')}
-      ${fmtRow('Profitfaktor', profitFactor)}
-      ${fmtRow('Bester Trade', best ? `${fmt(best.pnl)} · ${best.asset}` : '–')}
-      ${fmtRow('Schlechtester Trade', worst ? `${fmt(worst.pnl)} · ${worst.asset}` : '–')}
-    </div>
-    <div class="stat-block">
-      <p class="kicker">Long</p>
-      ${fmtRow('Anzahl', longs.length)}
-      ${fmtRow('Ergebnis', fmt(sumPnl(longs)))}
-      ${fmtRow('Trefferquote', winRateOf(longs).toFixed(1) + ' %')}
-    </div>
-    <div class="stat-block">
-      <p class="kicker">Short</p>
-      ${fmtRow('Anzahl', shorts.length)}
-      ${fmtRow('Ergebnis', fmt(sumPnl(shorts)))}
-      ${fmtRow('Trefferquote', winRateOf(shorts).toFixed(1) + ' %')}
-    </div>
-  `;
-}
 
 function renderEditList(){
   const container = document.getElementById('editList');
@@ -1200,6 +1204,60 @@ document.getElementById('toggleFormBtn').addEventListener('click', togglePanel);
 
   document.getElementById('periodPrev').addEventListener('click', () => slideToPeriod(-1));
   document.getElementById('periodNext').addEventListener('click', () => slideToPeriod(1));
+})();
+
+function slideStatsMonth(dir){
+  const content = document.getElementById('statsPageContent');
+  content.style.transform = `translateX(${dir * -260}px)`;
+  content.style.opacity = '0';
+  setTimeout(() => {
+    shiftStatsMonth(dir);
+    const fresh = document.getElementById('statsPageContent');
+    fresh.style.transition = 'none';
+    fresh.style.transform = `translateX(${dir * 260}px)`;
+    void fresh.offsetWidth;
+    fresh.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+    fresh.style.transform = 'translateX(0)';
+    fresh.style.opacity = '1';
+  }, 220);
+}
+
+(function setupStatsSwipe(){
+  const panel = document.querySelector('#statsPage .page-panel') || document.getElementById('statsPage');
+  let startX = 0, startY = 0, dragging = false;
+
+  panel.addEventListener('touchstart', (e) => {
+    startX = e.changedTouches[0].clientX;
+    startY = e.changedTouches[0].clientY;
+    dragging = true;
+    const content = document.getElementById('statsPageContent');
+    content.style.transition = 'none';
+  }, {passive:true});
+
+  panel.addEventListener('touchmove', (e) => {
+    if(!dragging) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if(Math.abs(dx) > Math.abs(dy)){
+      const content = document.getElementById('statsPageContent');
+      content.style.transform = `translateX(${dx}px)`;
+      content.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx)/260));
+    }
+  }, {passive:true});
+
+  panel.addEventListener('touchend', (e) => {
+    dragging = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    const content = document.getElementById('statsPageContent');
+    content.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
+    if(Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)){
+      slideStatsMonth(dx < 0 ? 1 : -1);
+    } else {
+      content.style.transform = 'translateX(0)';
+      content.style.opacity = '1';
+    }
+  }, {passive:true});
 })();
 
 loadStartBalance();
