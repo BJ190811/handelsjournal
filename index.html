@@ -146,6 +146,63 @@
   body.light-mode .page-overlay{background:#EFEAE0;}
   .page-overlay.open{display:block;}
   #statsPageContent{transition:transform 0.22s ease, opacity 0.22s ease;}
+  .gran-tabs{
+    display:flex;
+    gap:0.5rem;
+    margin-bottom:1rem;
+  }
+  .gran-tab{
+    font-family:'Inter',sans-serif;
+    font-size:0.78rem;
+    font-weight:500;
+    padding:0.4rem 0.9rem;
+    border:1px solid var(--ink-700);
+    background:transparent;
+    color:var(--parchment-dim);
+    cursor:pointer;
+    border-radius:2px;
+  }
+  .gran-tab.active{
+    border-color:var(--gold);
+    color:var(--gold);
+  }
+  .snackbar{
+    position:fixed;
+    left:50%;
+    bottom:1.4rem;
+    transform:translate(-50%, 20px);
+    display:flex;
+    align-items:center;
+    gap:1rem;
+    background:#20262E;
+    border:1px solid var(--ink-700);
+    color:var(--parchment);
+    padding:0.75rem 1rem;
+    border-radius:4px;
+    font-size:0.85rem;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0;
+    pointer-events:none;
+    transition:transform 0.25s ease, opacity 0.25s ease;
+    z-index:200;
+    max-width:90vw;
+  }
+  .snackbar.show{
+    transform:translate(-50%, 0);
+    opacity:1;
+    pointer-events:auto;
+  }
+  .snackbar button{
+    background:none;
+    border:none;
+    color:var(--gold);
+    font-weight:600;
+    font-size:0.85rem;
+    cursor:pointer;
+    padding:0;
+    white-space:nowrap;
+  }
+  .snackbar button:hover{text-decoration:underline;}
   .page-inner{max-width:760px;margin:0 auto;padding:1.6rem 1.5rem 4rem;}
   .page-head{
     display:flex;justify-content:space-between;align-items:center;
@@ -628,6 +685,11 @@
 
 </div>
 
+<div class="snackbar" id="undoSnackbar">
+  <span id="undoSnackbarText">Trade gelöscht</span>
+  <button type="button" id="undoSnackbarBtn">Rückgängig</button>
+</div>
+
 <script>
 let trades = [];
 let startBalance = 0;
@@ -818,10 +880,14 @@ function closeMenu(){
 }
 
 let statsMonth = null;
+let statsYear = null;
+let statsGranularity = 'monthly';
 
 function openStatsPage(){
   closeMenu();
-  if(!statsMonth) statsMonth = new Date().toISOString().slice(0,7);
+  const now = new Date();
+  if(!statsMonth) statsMonth = now.toISOString().slice(0,7);
+  if(!statsYear) statsYear = String(now.getFullYear());
   renderStatsPage();
   document.getElementById('statsPage').classList.add('open');
 }
@@ -832,81 +898,95 @@ document.getElementById('menuStatsBtn').addEventListener('click', openStatsPage)
 document.getElementById('statsPageCloseBtn').addEventListener('click', closeStatsPage);
 
 function shiftStatsMonth(dir){
-  const [y,m] = statsMonth.split('-').map(Number);
-  const d = new Date(y, (m-1)+dir, 1);
-  statsMonth = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  if(statsGranularity === 'yearly'){
+    statsYear = String(Number(statsYear) + dir);
+  } else {
+    const [y,m] = statsMonth.split('-').map(Number);
+    const d = new Date(y, (m-1)+dir, 1);
+    statsMonth = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  renderStatsPage();
+}
+
+function setStatsGranularity(g){
+  statsGranularity = g;
   renderStatsPage();
 }
 
 function renderStatsPage(){
   const container = document.getElementById('statsPageContent');
-  const monthTrades = trades.filter(t => t.date.slice(0,7) === statsMonth);
-  const [y,m] = statsMonth.split('-').map(Number);
-  const monthLabel = new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'long', year:'numeric'});
+  const periodTrades = statsGranularity === 'yearly'
+    ? trades.filter(t => t.date.slice(0,4) === statsYear)
+    : trades.filter(t => t.date.slice(0,7) === statsMonth);
+  const periodLabel = statsGranularity === 'yearly'
+    ? statsYear
+    : (() => { const [y,m] = statsMonth.split('-').map(Number); return new Date(y, m-1, 1).toLocaleDateString('de-DE', {month:'long', year:'numeric'}); })();
 
   const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
 
-  if(monthTrades.length === 0){
+  const granTabs = `
+    <div class="gran-tabs">
+      <button type="button" class="gran-tab${statsGranularity==='monthly'?' active':''}" id="statsGranMonthly">Monat</button>
+      <button type="button" class="gran-tab${statsGranularity==='yearly'?' active':''}" id="statsGranYearly">Jahr</button>
+    </div>`;
+
+  const navLabel = statsGranularity === 'yearly' ? 'Vorheriges Jahr' : 'Vorheriger Monat';
+  const navLabelNext = statsGranularity === 'yearly' ? 'Nächstes Jahr' : 'Nächster Monat';
+
+  if(periodTrades.length === 0){
     container.innerHTML = `
+      ${granTabs}
       <div class="month-nav">
-        <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="Vorheriger Monat">‹</button>
-        <span class="month-nav-label">${monthLabel}</span>
-        <button type="button" class="period-arrow" id="statsMonthNext" aria-label="Nächster Monat">›</button>
+        <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="${navLabel}">‹</button>
+        <span class="month-nav-label">${periodLabel}</span>
+        <button type="button" class="period-arrow" id="statsMonthNext" aria-label="${navLabelNext}">›</button>
       </div>
-      <div class="equity-empty">Keine Trades in diesem Monat.</div>
+      <div class="equity-empty">Keine Trades in diesem ${statsGranularity === 'yearly' ? 'Jahr' : 'Monat'}.</div>
     `;
-    document.getElementById('statsMonthPrev').addEventListener('click', () => shiftStatsMonth(-1));
-    document.getElementById('statsMonthNext').addEventListener('click', () => shiftStatsMonth(1));
+    wireStatsPageControls();
     return;
   }
 
-  const longs = monthTrades.filter(t => t.direction === 'long');
-  const shorts = monthTrades.filter(t => t.direction === 'short');
-  const wins = monthTrades.filter(t => t.pnl > 0);
-  const losses = monthTrades.filter(t => t.pnl < 0);
+  const wins = periodTrades.filter(t => t.pnl > 0);
+  const losses = periodTrades.filter(t => t.pnl < 0);
   const sumPnl = arr => arr.reduce((s,t) => s+t.pnl, 0);
   const winRateOf = arr => arr.length ? (arr.filter(t=>t.pnl>0).length/arr.length*100) : 0;
-  const best = monthTrades.reduce((mm,t) => t.pnl > (mm ? mm.pnl : -Infinity) ? t : mm, null);
-  const worst = monthTrades.reduce((mm,t) => t.pnl < (mm ? mm.pnl : Infinity) ? t : mm, null);
-  const totalPnl = sumPnl(monthTrades);
+  const best = periodTrades.reduce((mm,t) => t.pnl > (mm ? mm.pnl : -Infinity) ? t : mm, null);
+  const worst = periodTrades.reduce((mm,t) => t.pnl < (mm ? mm.pnl : Infinity) ? t : mm, null);
+  const totalPnl = sumPnl(periodTrades);
   const winSum = sumPnl(wins);
   const lossSum = Math.abs(sumPnl(losses));
   const profitFactor = lossSum > 0 ? (winSum/lossSum).toFixed(2) : (winSum > 0 ? '∞' : '–');
 
   container.innerHTML = `
+    ${granTabs}
     <div class="month-nav">
-      <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="Vorheriger Monat">‹</button>
-      <span class="month-nav-label">${monthLabel}</span>
-      <button type="button" class="period-arrow" id="statsMonthNext" aria-label="Nächster Monat">›</button>
+      <button type="button" class="period-arrow" id="statsMonthPrev" aria-label="${navLabel}">‹</button>
+      <span class="month-nav-label">${periodLabel}</span>
+      <button type="button" class="period-arrow" id="statsMonthNext" aria-label="${navLabelNext}">›</button>
     </div>
     <div class="stat-block">
-      <p class="kicker">Monatsjournal</p>
-      ${fmtRow('Trades gesamt', monthTrades.length)}
+      <p class="kicker">${statsGranularity === 'yearly' ? 'Jahresjournal' : 'Monatsjournal'}</p>
+      ${fmtRow('Trades gesamt', periodTrades.length)}
       ${fmtRow('Gesamtergebnis', fmt(totalPnl))}
-      ${fmtRow('Trefferquote', winRateOf(monthTrades).toFixed(1) + ' %')}
+      ${fmtRow('Trefferquote', winRateOf(periodTrades).toFixed(1) + ' %')}
       ${fmtRow('Profitfaktor', profitFactor)}
       ${fmtRow('Bester Trade', best ? `${fmt(best.pnl)} · ${best.asset}` : '–')}
       ${fmtRow('Schlechtester Trade', worst ? `${fmt(worst.pnl)} · ${worst.asset}` : '–')}
     </div>
     <div class="stat-block">
-      <p class="kicker">Long</p>
-      ${fmtRow('Anzahl', longs.length)}
-      ${fmtRow('Ergebnis', longs.length ? fmt(sumPnl(longs)) : '–')}
-      ${fmtRow('Trefferquote', longs.length ? winRateOf(longs).toFixed(1) + ' %' : '–')}
-    </div>
-    <div class="stat-block">
-      <p class="kicker">Short</p>
-      ${fmtRow('Anzahl', shorts.length)}
-      ${fmtRow('Ergebnis', shorts.length ? fmt(sumPnl(shorts)) : '–')}
-      ${fmtRow('Trefferquote', shorts.length ? winRateOf(shorts).toFixed(1) + ' %' : '–')}
-    </div>
-    <div class="stat-block">
       <p class="kicker">Equity Curve</p>
-      <div id="statsPageChart">${buildEquityCurveSvg(monthTrades, 130)}</div>
+      <div id="statsPageChart">${buildEquityCurveSvg(periodTrades, 130)}</div>
     </div>
   `;
+  wireStatsPageControls();
+}
+
+function wireStatsPageControls(){
   document.getElementById('statsMonthPrev').addEventListener('click', () => shiftStatsMonth(-1));
   document.getElementById('statsMonthNext').addEventListener('click', () => shiftStatsMonth(1));
+  document.getElementById('statsGranMonthly').addEventListener('click', () => setStatsGranularity('monthly'));
+  document.getElementById('statsGranYearly').addEventListener('click', () => setStatsGranularity('yearly'));
 }
 
 function openSettingsPage(){
@@ -977,12 +1057,44 @@ function startEditTrade(id){
   document.getElementById('tradeModal').classList.add('open');
 }
 
+let pendingUndo = null;
+let undoTimeout = null;
+
 async function removeTrade(id){
-  trades = trades.filter(t => t.id !== id);
+  const idx = trades.findIndex(t => t.id === id);
+  if(idx === -1) return;
+  const [removed] = trades.splice(idx, 1);
+  pendingUndo = { trade: removed, index: idx };
   await persist();
   renderEditList();
   render();
+  showUndoSnackbar();
 }
+
+function showUndoSnackbar(){
+  const bar = document.getElementById('undoSnackbar');
+  document.getElementById('undoSnackbarText').textContent = 'Trade gelöscht';
+  bar.classList.add('show');
+  if(undoTimeout) clearTimeout(undoTimeout);
+  undoTimeout = setTimeout(() => {
+    bar.classList.remove('show');
+    pendingUndo = null;
+  }, 4000);
+}
+
+async function undoDelete(){
+  if(!pendingUndo) return;
+  if(undoTimeout) clearTimeout(undoTimeout);
+  const { trade, index } = pendingUndo;
+  trades.splice(Math.min(index, trades.length), 0, trade);
+  pendingUndo = null;
+  await persist();
+  document.getElementById('undoSnackbar').classList.remove('show');
+  renderEditList();
+  render();
+}
+
+document.getElementById('undoSnackbarBtn').addEventListener('click', undoDelete);
 
 function renderPeriodLabel(){
   const today = new Date();
