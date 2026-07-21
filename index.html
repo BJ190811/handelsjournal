@@ -264,6 +264,23 @@
     font-size:0.86rem;
     border-radius:2px;
   }
+  .settings-select{
+    width:100%;
+    background:var(--ink-850);
+    border:1px solid var(--ink-700);
+    color:var(--parchment);
+    padding:0.5rem 0.6rem;
+    font-family:'Inter',sans-serif;
+    font-size:0.86rem;
+    border-radius:2px;
+    margin-bottom:0.8rem;
+  }
+  #statsDetailContent{max-height:50vh;overflow-y:auto;}
+  .detail-open-wrap{
+    display:flex;
+    justify-content:center;
+    margin-bottom:1.4rem;
+  }
   .btn-danger{border-color:var(--loss);color:var(--loss);}
   .btn-danger:hover{background:rgba(208,122,99,0.15);}
   .theme-toggle{display:flex;gap:0.4rem;}
@@ -603,6 +620,23 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="statsDetailModal">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Detailansicht</h2>
+        <button type="button" class="modal-close" id="statsDetailModalCloseBtn" aria-label="Schließen">✕</button>
+      </div>
+      <select id="statsDetailSelect" class="settings-select">
+        <option value="list">Liste aller Trades</option>
+        <option value="best">Bester Trade</option>
+        <option value="worst">Schlechtester Trade</option>
+        <option value="longshort">Long/Short Performance</option>
+        <option value="avgwinloss">Ø Gewinn/Verlust</option>
+      </select>
+      <div id="statsDetailContent"></div>
+    </div>
+  </div>
+
   <div class="page-overlay" id="statsPage">
     <div class="page-inner">
       <div class="page-head">
@@ -864,6 +898,15 @@ document.getElementById('editModal').addEventListener('click', (e) => {
 document.getElementById('editModalCloseBtn').addEventListener('click', closeEditModal);
 document.getElementById('editTradesBtn').addEventListener('click', openEditModal);
 
+document.getElementById('statsDetailModal').addEventListener('click', (e) => {
+  if(e.target.id === 'statsDetailModal') closeStatsDetailModal();
+});
+document.getElementById('statsDetailModalCloseBtn').addEventListener('click', closeStatsDetailModal);
+document.getElementById('statsDetailSelect').addEventListener('change', (e) => {
+  statsDetailView = e.target.value;
+  renderStatsDetail();
+});
+
 document.getElementById('menuBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   document.getElementById('menuDropdown').classList.toggle('open');
@@ -882,6 +925,8 @@ function closeMenu(){
 let statsMonth = null;
 let statsYear = null;
 let statsGranularity = 'monthly';
+let statsDetailView = 'list';
+let currentPeriodTrades = [];
 
 function openStatsPage(){
   closeMenu();
@@ -910,6 +955,9 @@ function shiftStatsMonth(dir){
 
 function setStatsGranularity(g){
   statsGranularity = g;
+  if(statsGranularity === 'yearly' && statsDetailView === 'list'){
+    statsDetailView = 'best';
+  }
   renderStatsPage();
 }
 
@@ -951,8 +999,6 @@ function renderStatsPage(){
   const losses = periodTrades.filter(t => t.pnl < 0);
   const sumPnl = arr => arr.reduce((s,t) => s+t.pnl, 0);
   const winRateOf = arr => arr.length ? (arr.filter(t=>t.pnl>0).length/arr.length*100) : 0;
-  const best = periodTrades.reduce((mm,t) => t.pnl > (mm ? mm.pnl : -Infinity) ? t : mm, null);
-  const worst = periodTrades.reduce((mm,t) => t.pnl < (mm ? mm.pnl : Infinity) ? t : mm, null);
   const totalPnl = sumPnl(periodTrades);
   const winSum = sumPnl(wins);
   const lossSum = Math.abs(sumPnl(losses));
@@ -971,15 +1017,120 @@ function renderStatsPage(){
       ${fmtRow('Gesamtergebnis', fmt(totalPnl))}
       ${fmtRow('Trefferquote', winRateOf(periodTrades).toFixed(1) + ' %')}
       ${fmtRow('Profitfaktor', profitFactor)}
-      ${fmtRow('Bester Trade', best ? `${fmt(best.pnl)} · ${best.asset}` : '–')}
-      ${fmtRow('Schlechtester Trade', worst ? `${fmt(worst.pnl)} · ${worst.asset}` : '–')}
+    </div>
+    <div class="detail-open-wrap">
+      <button type="button" class="btn btn-ghost" id="openStatsDetailBtn">Analyse</button>
     </div>
     <div class="stat-block">
       <p class="kicker">Equity Curve</p>
       <div id="statsPageChart">${buildEquityCurveSvg(periodTrades, 130)}</div>
     </div>
   `;
+  currentPeriodTrades = periodTrades;
   wireStatsPageControls();
+  document.getElementById('openStatsDetailBtn').addEventListener('click', openStatsDetailModal);
+}
+
+function openStatsDetailModal(){
+  const sel = document.getElementById('statsDetailSelect');
+  sel.querySelector('option[value="list"]').disabled = (statsGranularity === 'yearly');
+  sel.querySelector('option[value="list"]').textContent = 'Liste aller Trades' + (statsGranularity === 'yearly' ? ' (nur Monat)' : '');
+  if(statsDetailView === 'list' && statsGranularity === 'yearly'){
+    statsDetailView = 'best';
+  }
+  sel.value = statsDetailView;
+  renderStatsDetail();
+  document.getElementById('statsDetailModal').classList.add('open');
+}
+function closeStatsDetailModal(){
+  document.getElementById('statsDetailModal').classList.remove('open');
+}
+
+function renderStatsDetail(){
+  const el = document.getElementById('statsDetailContent');
+  if(!el) return;
+  const list = currentPeriodTrades;
+
+  if(statsDetailView === 'list' && statsGranularity === 'yearly'){
+    statsDetailView = 'best';
+    const sel = document.getElementById('statsDetailSelect');
+    if(sel) sel.value = 'best';
+  }
+
+  if(statsDetailView === 'list'){
+    const sorted = [...list].sort((a,b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    el.innerHTML = sorted.map(t => {
+      const win = t.pnl > 0;
+      const dateFmt = t.date ? t.date.split('-').reverse().join('.') : '–';
+      return `<div class="edit-row">
+        <div class="edit-row-info">
+          <span>${dateFmt} · ${t.asset || '–'} · ${t.direction === 'long' ? 'Long' : 'Short'}</span>
+          <span class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</span>
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
+
+  if(statsDetailView === 'avgwinloss'){
+    const wins = list.filter(t => t.pnl > 0);
+    const losses = list.filter(t => t.pnl < 0);
+    const avgWin = wins.length ? wins.reduce((s,t)=>s+t.pnl,0)/wins.length : 0;
+    const avgLoss = losses.length ? losses.reduce((s,t)=>s+t.pnl,0)/losses.length : 0;
+    const avgAll = list.length ? list.reduce((s,t)=>s+t.pnl,0)/list.length : 0;
+    el.innerHTML = `
+      <div class="stat-block">
+        <p class="kicker">Durchschnittswerte</p>
+        ${fmtRow('Ø Gewinn', wins.length ? fmt(avgWin) : '–')}
+        ${fmtRow('Ø Verlust', losses.length ? fmt(avgLoss) : '–')}
+        ${fmtRow('Ø Ergebnis je Trade', list.length ? fmt(avgAll) : '–')}
+        ${fmtRow('Anzahl Gewinner', wins.length)}
+        ${fmtRow('Anzahl Verlierer', losses.length)}
+      </div>
+    `;
+    return;
+  }
+
+  if(statsDetailView === 'longshort'){
+    const longs = list.filter(t => t.direction === 'long');
+    const shorts = list.filter(t => t.direction === 'short');
+    const sumPnl = arr => arr.reduce((s,t) => s+t.pnl, 0);
+    const winRateOf = arr => arr.length ? (arr.filter(t=>t.pnl>0).length/arr.length*100) : 0;
+    el.innerHTML = `
+      <div class="stat-block">
+        <p class="kicker">Long</p>
+        ${fmtRow('Anzahl', longs.length)}
+        ${fmtRow('Ergebnis', longs.length ? fmt(sumPnl(longs)) : '–')}
+        ${fmtRow('Trefferquote', longs.length ? winRateOf(longs).toFixed(1) + ' %' : '–')}
+      </div>
+      <div class="stat-block">
+        <p class="kicker">Short</p>
+        ${fmtRow('Anzahl', shorts.length)}
+        ${fmtRow('Ergebnis', shorts.length ? fmt(sumPnl(shorts)) : '–')}
+        ${fmtRow('Trefferquote', shorts.length ? winRateOf(shorts).toFixed(1) + ' %' : '–')}
+      </div>
+    `;
+    return;
+  }
+
+  const trade = statsDetailView === 'best'
+    ? list.reduce((mm,t) => t.pnl > (mm ? mm.pnl : -Infinity) ? t : mm, null)
+    : list.reduce((mm,t) => t.pnl < (mm ? mm.pnl : Infinity) ? t : mm, null);
+
+  if(!trade){
+    el.innerHTML = '<div class="equity-empty">Keine Daten verfügbar.</div>';
+    return;
+  }
+  const win = trade.pnl > 0;
+  const dateFmt = trade.date ? trade.date.split('-').reverse().join('.') : '–';
+  el.innerHTML = `
+    ${fmtRow('Datum', dateFmt)}
+    ${fmtRow('Asset', trade.asset || '–')}
+    ${fmtRow('Richtung', trade.direction === 'long' ? 'Long' : 'Short')}
+    ${fmtRow('P&L', `<span class="${win ? 'gain' : trade.pnl < 0 ? 'loss' : 'neutral'}">${fmt(trade.pnl)}</span>`)}
+  `;
 }
 
 function wireStatsPageControls(){

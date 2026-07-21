@@ -1,4 +1,4 @@
-const CACHE_NAME = 'handelsjournal-v14';
+const CACHE_NAME = 'handelsjournal-v21';
 const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png', './bg-texture.jpg'];
 
 self.addEventListener('install', (event) => {
