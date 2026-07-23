@@ -264,6 +264,7 @@
     font-size:0.86rem;
     border-radius:2px;
   }
+  .export-import-row{display:flex;gap:0.6rem;flex-wrap:wrap;}
   .settings-select{
     width:100%;
     background:var(--ink-850);
@@ -674,6 +675,15 @@
         <p class="kicker">Startkapital</p>
         <input type="number" step="any" id="settingsStartBalance" placeholder="0,00">
         <button type="button" class="btn" id="settingsSaveBalanceBtn">Speichern</button>
+      </div>
+      <div class="settings-row">
+        <p class="kicker">Daten exportieren / importieren</p>
+        <div class="export-import-row">
+          <button type="button" class="btn btn-ghost" id="settingsExportBtn">CSV Export</button>
+          <button type="button" class="btn btn-ghost" id="settingsImportBtn">CSV Import</button>
+          <input type="file" id="settingsImportFile" accept=".csv,text/csv" style="display:none;">
+        </div>
+        <p id="importStatusMsg" style="font-size:0.78rem;color:var(--parchment-dim);margin:0.6rem 0 0;"></p>
       </div>
       <div class="settings-row">
         <p class="kicker">Alle Daten löschen</p>
@@ -1143,6 +1153,7 @@ function wireStatsPageControls(){
 function openSettingsPage(){
   closeMenu();
   document.getElementById('settingsStartBalance').value = startBalance.toFixed(2);
+  document.getElementById('importStatusMsg').textContent = '';
   document.getElementById('settingsPage').classList.add('open');
 }
 function closeSettingsPage(){
@@ -1158,6 +1169,12 @@ document.getElementById('settingsSaveBalanceBtn').addEventListener('click', () =
   render();
   closeSettingsPage();
 });
+document.getElementById('settingsStartBalance').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('settingsSaveBalanceBtn').click();
+  }
+});
 
 document.getElementById('settingsResetBtn').addEventListener('click', async () => {
   if(!confirm('Wirklich alle Trades und das Startkapital unwiderruflich löschen?')) return;
@@ -1169,6 +1186,81 @@ document.getElementById('settingsResetBtn').addEventListener('click', async () =
   }catch(e){}
   render();
   closeSettingsPage();
+});
+
+function tradesToCsv(){
+  const header = 'Datum,Richtung,Asset,PnL';
+  const rows = trades.map(t => [t.date, t.direction, (t.asset || '').replace(/,/g,';'), t.pnl].join(','));
+  return [header, ...rows].join('\n');
+}
+
+function exportCsv(){
+  const csv = tradesToCsv();
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `handelsjournal-export-${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function parseCsv(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if(lines.length < 2) return [];
+  const dataLines = lines.slice(1);
+  const parsed = [];
+  dataLines.forEach(line => {
+    const parts = line.split(',');
+    if(parts.length < 4) return;
+    const [dateRaw, directionRaw, assetRaw, pnlRaw] = parts;
+    const date = (dateRaw || '').trim();
+    const pnl = parseFloat(pnlRaw);
+    if(!date || isNaN(pnl)) return;
+    const direction = (directionRaw || '').trim().toLowerCase() === 'short' ? 'short' : 'long';
+    parsed.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+      date,
+      direction,
+      asset: (assetRaw || '').trim(),
+      pnl
+    });
+  });
+  return parsed;
+}
+
+async function importCsvFile(file){
+  const statusEl = document.getElementById('importStatusMsg');
+  try{
+    const text = await file.text();
+    const imported = parseCsv(text);
+    if(imported.length === 0){
+      statusEl.textContent = 'Keine gültigen Zeilen gefunden.';
+      statusEl.style.color = 'var(--loss)';
+      return;
+    }
+    trades = trades.concat(imported);
+    await persist();
+    render();
+    statusEl.textContent = `${imported.length} Trade(s) importiert.`;
+    statusEl.style.color = 'var(--gain)';
+  }catch(e){
+    statusEl.textContent = 'Import fehlgeschlagen. Bitte Datei prüfen.';
+    statusEl.style.color = 'var(--loss)';
+  }
+}
+
+document.getElementById('settingsExportBtn').addEventListener('click', exportCsv);
+document.getElementById('settingsImportBtn').addEventListener('click', () => {
+  document.getElementById('settingsImportFile').click();
+});
+document.getElementById('settingsImportFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(file) importCsvFile(file);
+  e.target.value = '';
 });
 
 function renderEditList(){
@@ -1427,6 +1519,15 @@ function render(){
 }
 
 document.getElementById('toggleFormBtn').addEventListener('click', togglePanel);
+
+['f-date','f-asset','f-pnl'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      saveTrade();
+    }
+  });
+});
 
 (function setupSwipe(){
   const card = document.getElementById('equityCard');
