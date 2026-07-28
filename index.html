@@ -375,6 +375,12 @@
   }
   .mono{font-variant-numeric:tabular-nums;}
   .edit-row-info .mono{font-weight:600;font-size:0.88rem;}
+  .edit-row-note{
+    font-size:0.76rem;
+    color:var(--parchment-dim);
+    font-style:italic;
+    white-space:pre-wrap;
+  }
   .edit-row-actions{display:flex;gap:0.4rem;}
   .icon-btn{
     background:none;
@@ -601,6 +607,18 @@
     font-size:0.86rem;
     border-radius:2px;
   }
+  .field textarea{
+    width:100%;
+    background:var(--ink-850);
+    border:1px solid var(--ink-700);
+    color:var(--parchment);
+    padding:0.5rem 0.6rem;
+    font-family:'Inter',sans-serif;
+    font-size:0.86rem;
+    border-radius:2px;
+    resize:vertical;
+  }
+  .field-notes{margin-top:0.9rem;}
   .dir-toggle{display:flex;gap:0.4rem;}
   .dir-toggle button{
     flex:1;
@@ -699,6 +717,7 @@
         <option value="worst">Schlechtester Trade</option>
         <option value="longshort">Long/Short Performance</option>
         <option value="avgwinloss">Ø Gewinn/Verlust</option>
+        <option value="drawdown">Maximaler Drawdown</option>
       </select>
       <div id="statsDetailContent"></div>
     </div>
@@ -836,6 +855,10 @@
           <label>P&L</label>
           <input type="number" step="any" id="f-pnl" placeholder="z. B. 150 oder -80">
         </div>
+      </div>
+      <div class="field field-notes">
+        <label>Notiz (optional)</label>
+        <textarea id="f-notes" placeholder="z. B. Setup, Begründung, Lessons Learned…" rows="3"></textarea>
       </div>
       <div class="panel-actions">
         <button class="btn btn-ghost" onclick="closePanel()">Abbrechen</button>
@@ -989,6 +1012,7 @@ document.getElementById('tradeModal').addEventListener('click', (e) => {
 function clearForm(){
   document.getElementById('f-pnl').value = '';
   document.getElementById('f-asset').value = '';
+  document.getElementById('f-notes').value = '';
   document.getElementById('f-date').valueAsDate = new Date();
   setDirection('long');
 }
@@ -997,6 +1021,7 @@ async function saveTrade(){
   const pnl = parseFloat(document.getElementById('f-pnl').value);
   const date = document.getElementById('f-date').value;
   const asset = document.getElementById('f-asset').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
   if(!date || isNaN(pnl) || !asset){
     alert('Bitte Datum, Asset und P&L ausfüllen.');
     return;
@@ -1008,6 +1033,7 @@ async function saveTrade(){
       existing.direction = currentDirection;
       existing.asset = asset;
       existing.pnl = pnl;
+      existing.notes = notes;
     }
   } else {
     trades.push({
@@ -1015,7 +1041,8 @@ async function saveTrade(){
       date,
       direction: currentDirection,
       asset,
-      pnl
+      pnl,
+      notes
     });
   }
   await persist();
@@ -1204,6 +1231,7 @@ function renderStatsDetail(){
         <div class="edit-row-info">
           <span>${dateFmt} · ${t.asset || '–'} · ${t.direction === 'long' ? 'Long' : 'Short'}</span>
           <span class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</span>
+          ${t.notes ? `<span class="edit-row-note">${escapeHtml(t.notes)}</span>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -1211,6 +1239,38 @@ function renderStatsDetail(){
   }
 
   const fmtRow = (label, val) => `<div class="stat-block-row"><span>${label}</span><span class="val">${val}</span></div>`;
+
+  if(statsDetailView === 'drawdown'){
+    const sorted = [...list].sort((a,b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    let cum = 0, peak = 0, peakDate = sorted.length ? sorted[0].date : null;
+    let maxDD = 0, maxDDPeak = 0, maxDDPeakDate = null, maxDDTroughDate = null;
+    sorted.forEach(t => {
+      cum += t.pnl;
+      if(cum > peak){
+        peak = cum;
+        peakDate = t.date;
+      }
+      const dd = peak - cum;
+      if(dd > maxDD){
+        maxDD = dd;
+        maxDDPeak = peak;
+        maxDDPeakDate = peakDate;
+        maxDDTroughDate = t.date;
+      }
+    });
+    const ddPct = maxDDPeak > 0 ? (maxDD / maxDDPeak * 100) : 0;
+    const fmtDate = d => d ? d.split('-').reverse().join('.') : '–';
+    el.innerHTML = `
+      <div class="stat-block">
+        <p class="kicker">Maximaler Drawdown</p>
+        ${fmtRow('Höhe', maxDD > 0 ? fmt(-maxDD) : '–')}
+        ${fmtRow('In % vom Hoch', maxDD > 0 && maxDDPeak > 0 ? '-' + ddPct.toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' %' : '–')}
+        ${fmtRow('Hoch am', maxDD > 0 ? fmtDate(maxDDPeakDate) : '–')}
+        ${fmtRow('Tiefpunkt am', maxDD > 0 ? fmtDate(maxDDTroughDate) : '–')}
+      </div>
+    `;
+    return;
+  }
 
   if(statsDetailView === 'avgwinloss'){
     const wins = list.filter(t => t.pnl > 0);
@@ -1347,8 +1407,14 @@ document.getElementById('settingsResetBtn').addEventListener('click', async () =
 });
 
 function tradesToCsv(){
-  const header = 'Datum,Richtung,Asset,PnL';
-  const rows = trades.map(t => [t.date, t.direction, (t.asset || '').replace(/,/g,';'), t.pnl].join(','));
+  const header = 'Datum,Richtung,Asset,PnL,Notiz';
+  const rows = trades.map(t => [
+    t.date,
+    t.direction,
+    (t.asset || '').replace(/,/g,';'),
+    t.pnl,
+    (t.notes || '').replace(/,/g,';').replace(/\r?\n/g,' ')
+  ].join(','));
   return [header, ...rows].join('\n');
 }
 
@@ -1374,7 +1440,7 @@ function parseCsv(text){
   dataLines.forEach(line => {
     const parts = line.split(',');
     if(parts.length < 4) return;
-    const [dateRaw, directionRaw, assetRaw, pnlRaw] = parts;
+    const [dateRaw, directionRaw, assetRaw, pnlRaw, ...notesParts] = parts;
     const date = (dateRaw || '').trim();
     const pnl = parseFloat(pnlRaw);
     if(!date || isNaN(pnl)) return;
@@ -1384,7 +1450,8 @@ function parseCsv(text){
       date,
       direction,
       asset: (assetRaw || '').trim(),
-      pnl
+      pnl,
+      notes: notesParts.join(',').trim()
     });
   });
   return parsed;
@@ -1421,6 +1488,12 @@ document.getElementById('settingsImportFile').addEventListener('change', (e) => 
   e.target.value = '';
 });
 
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function renderEditList(){
   const container = document.getElementById('editList');
   if(trades.length === 0){
@@ -1435,6 +1508,7 @@ function renderEditList(){
       <div class="edit-row-info">
         <span>${dateFmt} · ${t.asset || '–'} · ${t.direction === 'long' ? 'Long' : 'Short'}</span>
         <span class="mono ${win ? 'gain' : t.pnl < 0 ? 'loss' : 'neutral'}">${fmt(t.pnl)}</span>
+        ${t.notes ? `<span class="edit-row-note">${escapeHtml(t.notes)}</span>` : ''}
       </div>
       <div class="edit-row-actions">
         <button type="button" class="icon-btn" onclick="startEditTrade('${t.id}')" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
@@ -1451,6 +1525,7 @@ function startEditTrade(id){
   document.getElementById('f-date').value = t.date;
   document.getElementById('f-asset').value = t.asset;
   document.getElementById('f-pnl').value = t.pnl;
+  document.getElementById('f-notes').value = t.notes || '';
   setDirection(t.direction);
   document.getElementById('tradeModalTitle').textContent = 'Trade bearbeiten';
   document.getElementById('saveTradeBtn').textContent = 'Änderungen speichern';
