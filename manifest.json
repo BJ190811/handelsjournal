@@ -1,11 +1,15 @@
 {
-  "name": "Handelsjournal",
-  "short_name": "Handelsjournal",
+  "name": "Simple Trading Journal",
+  "short_name": "STJ",
+  "id": "./",
+  "description": "Einfaches Handelsjournal zum Erfassen und Auswerten deiner Trades.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#10151C",
   "theme_color": "#10151C",
   "orientation": "portrait",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "icon-192.png",

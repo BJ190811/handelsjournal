@@ -137,7 +137,7 @@
 
   .page-overlay{
     display:none;
-    position:fixed;inset:0;
+    position:fixed;top:0;left:0;right:0;bottom:0;
     background:var(--ink-950) url('bg-texture.jpg') center top / cover no-repeat;
     background-attachment:fixed;
     z-index:80;
@@ -286,17 +286,10 @@
     color:var(--gold);
     word-break:break-all;
   }
-  .privacy-disclaimer{
-    margin-top:1.8rem;
-    padding-top:1rem;
-    border-top:1px solid var(--ink-700);
-    font-style:italic;
-    font-size:0.78rem;
-  }
   .consent-overlay{
     display:none;
     position:fixed;
-    inset:0;
+    top:0;left:0;right:0;bottom:0;
     background:rgba(6,8,11,0.92);
     z-index:500;
     align-items:center;
@@ -331,6 +324,59 @@
     gap:0.6rem;
   }
   .consent-actions .btn{width:100%;text-align:center;}
+
+  .ad-overlay{
+    display:none;
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background:rgba(6,8,11,0.92);
+    z-index:300;
+    align-items:center;
+    justify-content:center;
+    padding:1.4rem;
+  }
+  .ad-overlay.open{display:flex;}
+  .ad-box{
+    background:#181D24;
+    border:1px solid var(--ink-700);
+    border-radius:4px;
+    padding:1.2rem;
+    max-width:360px;
+    width:100%;
+    box-shadow:0 20px 50px rgba(0,0,0,0.5);
+    text-align:center;
+  }
+  .ad-tag{
+    display:block;
+    text-align:left;
+    font-size:0.65rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:0.7rem;
+  }
+  .ad-placeholder{
+    height:250px;
+    border:1px dashed var(--ink-700);
+    border-radius:4px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:0.4rem;
+    margin-bottom:1.2rem;
+    background:repeating-linear-gradient(45deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 10px, transparent 10px, transparent 20px);
+  }
+  .ad-placeholder-label{
+    color:var(--parchment-dim);
+    font-size:0.95rem;
+    font-weight:600;
+  }
+  .ad-placeholder-size{
+    color:var(--muted);
+    font-size:0.72rem;
+  }
+  .ad-box .btn{width:100%;text-align:center;}
   .settings-select{
     width:100%;
     background:var(--ink-850);
@@ -550,7 +596,7 @@
 
   .modal-overlay{
     display:none;
-    position:fixed;inset:0;
+    position:fixed;top:0;left:0;right:0;bottom:0;
     background:rgba(8,11,15,0.72);
     align-items:center;justify-content:center;
     padding:1.2rem;
@@ -826,7 +872,7 @@
         <h3>9. Änderungen dieser Datenschutzerklärung</h3>
         <p>Diese Datenschutzerklärung kann angepasst werden, um sie an geänderte Rechtslagen oder Funktionen der App anzupassen. Es gilt jeweils die zuletzt in der App hinterlegte Fassung.</p>
 
-        <p class="privacy-disclaimer">Hinweis: Dieser Text ist ein allgemeiner Entwurf und ersetzt keine individuelle Rechtsberatung. Vor produktivem Einsatz – insbesondere bei Nutzung durch Dritte – wird eine Prüfung durch eine rechtskundige Person empfohlen.</p>
+
       </div>
     </div>
   </div>
@@ -884,6 +930,17 @@
       <button type="button" class="btn btn-ghost" id="consentReadBtn">Datenschutzerklärung lesen</button>
       <button type="button" class="btn" id="consentAcceptBtn">Akzeptieren &amp; fortfahren</button>
     </div>
+  </div>
+</div>
+
+<div class="ad-overlay" id="adInterstitial">
+  <div class="ad-box">
+    <span class="ad-tag">Anzeige</span>
+    <div class="ad-placeholder">
+      <span class="ad-placeholder-label">Werbeplatz</span>
+      <span class="ad-placeholder-size">Platzhalter · 320×250</span>
+    </div>
+    <button type="button" class="btn" id="adContinueBtn">Weiter</button>
   </div>
 </div>
 
@@ -1028,6 +1085,7 @@ async function saveTrade(){
     alert('Bitte Datum, Asset und P&L ausfüllen.');
     return;
   }
+  const isNewTrade = !editingId;
   if(editingId){
     const existing = trades.find(t => t.id === editingId);
     if(existing){
@@ -1050,7 +1108,14 @@ async function saveTrade(){
   await persist();
   closePanel();
   render();
+  if(isNewTrade){
+    document.getElementById('adInterstitial').classList.add('open');
+  }
 }
+
+document.getElementById('adContinueBtn').addEventListener('click', () => {
+  document.getElementById('adInterstitial').classList.remove('open');
+});
 
 function openEditModal(){
   renderEditList();
